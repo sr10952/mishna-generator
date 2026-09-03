@@ -10,7 +10,7 @@ as-is. Pick whichever option below you like — all are on the free tier.
 | Deploy time | auto on every push | one command | auto on every push |
 | Free tier | ✅ | ✅ | ✅ |
 | Custom domain + free HTTPS | ✅ | ✅ | ✅ (via GitHub) |
-| Recommended | ✅ easiest long-term | ✅ no Git link needed | already enabled for this repo |
+| Recommended | ✅ easiest long-term | ✅ no Git link needed | ✅ 20-second setup |
 
 ---
 
@@ -92,14 +92,24 @@ Free tier: 100,000 requests/day — effectively unlimited for a personal poster 
 
 ---
 
-## Option D — GitHub Pages (already enabled for this repo)
+## Option D — GitHub Pages
 
-This repo has GitHub Pages enabled from its branch, so the site is also live at:
+Since the site is plain static files, GitHub Pages can serve it straight from the repo
+root. Once enabled (see below), the site goes live at:
 
 > **https://sr10952.github.io/ai-generated/**
 
-To re-create that manually: repo **Settings → Pages → Build and deployment →
-Source: Deploy from a branch → branch: `main`, folder: `/ (root)** → Save.
+**To enable (one-time, ~20 seconds):**
+
+1. Merge this project's pull request into `main` (or use any branch you like).
+2. Repo → **Settings** → **Pages** (left sidebar, under "Code and automation").
+3. **Build and deployment → Source: Deploy from a branch.**
+4. Branch: **`main`**, folder: **`/ (root)`** → **Save**.
+5. Wait ~1 minute, then reload the page — the URL above appears at the top.
+
+Every future push to `main` redeploys automatically. Custom domains can be added in the
+same settings screen (**Custom domain** field); HTTPS certificates are issued
+automatically.
 
 ---
 

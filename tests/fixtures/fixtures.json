@@ -1,0 +1,519 @@
+{
+ "texts": {
+  "Mishnah Bekhorot 3:2::hebrew": {
+   "versions": [
+    {
+     "status": "locked",
+     "priority": 3,
+     "license": "Public Domain",
+     "versionNotes": "",
+     "language": "he",
+     "versionSource": "https://www.sefaria.org",
+     "versionTitle": "Torat Emet 357",
+     "versionTitleInHebrew": "תורת אמת 357",
+     "actualLanguage": "he",
+     "languageFamilyName": "hebrew",
+     "isSource": true,
+     "isPrimary": true,
+     "direction": "rtl",
+     "text": [
+      "רַבָּן שִׁמְעוֹן בֶּן גַּמְלִיאֵל אוֹמֵר, הַלּוֹקֵחַ בְּהֵמָה מְנִיקָה מִן הַנָּכְרִי, אֵינוֹ חוֹשֵׁשׁ שֶׁמָּא בְּנָהּ שֶׁל אַחֶרֶת הָיָה. נִכְנַס לְתוֹךְ עֶדְרוֹ וְרָאָה אֶת הַמַּבְכִּירוֹת מְנִיקוֹת וְאֶת שֶׁאֵינָן מַבְכִּירוֹת מְנִיקוֹת, אֵינוֹ חוֹשֵׁשׁ שֶׁמָּא בְּנָהּ שֶׁל זוֹ בָּא לוֹ אֵצֶל זוֹ, אוֹ שֶׁמָּא בְּנָהּ שֶׁל זוֹ בָּא לוֹ אֵצֶל זוֹ: \n"
+     ]
+    }
+   ],
+   "available_versions": [],
+   "ref": "Mishnah Bekhorot 3:2",
+   "heRef": "משנה בכורות ג׳:ב׳",
+   "sections": [
+    "3",
+    "2"
+   ],
+   "next": "",
+   "prev": "",
+   "warnings": [],
+   "__synthetic_note": "Bekhorot 3:2 fixtures are real API captures; other refs are synthetic test data."
+  },
+  "Mishnah Bekhorot 3:3::hebrew": {
+   "versions": [
+    {
+     "status": "locked",
+     "priority": 3,
+     "license": "Public Domain",
+     "versionNotes": "",
+     "language": "he",
+     "versionSource": "https://www.sefaria.org",
+     "versionTitle": "Torat Emet 357",
+     "versionTitleInHebrew": "תורת אמת 357",
+     "actualLanguage": "he",
+     "languageFamilyName": "hebrew",
+     "isSource": true,
+     "isPrimary": true,
+     "direction": "rtl",
+     "text": [
+      "כֵּיצַד מַפְרִישִׁין בְּכוֹרוֹת. עָמַד בָּעֲדַר וְאָמַר: כָּל שֶׁיִּוָּלֵד בְּעֶדְרִי זֶה הֲרֵי הוּא קֹדֶשׁ, אֵין כְּלוּם. שֶׁלֹּא אָמַר אֶלָּא מַה שֶּׁיִּוָּלֵד: \n"
+     ]
+    }
+   ],
+   "available_versions": [],
+   "ref": "Mishnah Bekhorot 3:3",
+   "heRef": "משנה בכורות 3:3",
+   "sections": [
+    "3",
+    "3"
+   ],
+   "next": "",
+   "prev": "",
+   "warnings": [],
+   "__synthetic_note": "Bekhorot 3:2 fixtures are real API captures; other refs are synthetic test data."
+  },
+  "Mishnah Bekhorot 3:4::hebrew": {
+   "versions": [
+    {
+     "status": "locked",
+     "priority": 3,
+     "license": "Public Domain",
+     "versionNotes": "",
+     "language": "he",
+     "versionSource": "https://www.sefaria.org",
+     "versionTitle": "Torat Emet 357",
+     "versionTitleInHebrew": "תורת אמת 357",
+     "actualLanguage": "he",
+     "languageFamilyName": "hebrew",
+     "isSource": true,
+     "isPrimary": true,
+     "direction": "rtl",
+     "text": [
+      "מַפְרִישׁ אֶת הָעֲגָלוֹת וְאֶת הַגְּדָיִים וְאֶת הַטְּלָאִים וְאֶת הַבְּכוֹרוֹת, וְשׁוֹחֵט אוֹתָן בֶּחָצֵר, וְאוֹכֵל אוֹתָן בְּמַאֲכָל גַּס, וְאֵין נִמְלָכִין בָּהֶן, וְאֵין מַעֲלִין מֵהֶן עַל גַּבֵּי הַמִּזְבֵּחַ, וְאֵין נֶהֱנִין בָּהֶן בִּגְזִיזָה וְחֲלִיבָה עַד שֶׁיִּמּוּתוּ, וְאַחַר מִיתָה מֻתָּרִין בִּהְנָיָה מִיָּד, שֶׁנֶּאֱמַר: לֹא תַעְשֹׂק שָׂכִיר עָנִי וְאֶבְיוֹן מֵאַחֶיךָ, וְאָמַר רַבִּי יוֹסֵי: כָּל שֶׁהוּא מֻזְהָר עַל הָעֲבוֹדָה כֵּן הוּא מֻזְהָר עַל הַהֲנָאָה: \n"
+     ]
+    }
+   ],
+   "available_versions": [],
+   "ref": "Mishnah Bekhorot 3:4",
+   "heRef": "משנה בכורות 3:4",
+   "sections": [
+    "3",
+    "4"
+   ],
+   "next": "",
+   "prev": "",
+   "warnings": [],
+   "__synthetic_note": "Bekhorot 3:2 fixtures are real API captures; other refs are synthetic test data."
+  },
+  "Mishnah Bekhorot 4:1::hebrew": {
+   "versions": [
+    {
+     "status": "locked",
+     "priority": 3,
+     "license": "Public Domain",
+     "versionNotes": "",
+     "language": "he",
+     "versionSource": "https://www.sefaria.org",
+     "versionTitle": "Torat Emet 357",
+     "versionTitleInHebrew": "תורת אמת 357",
+     "actualLanguage": "he",
+     "languageFamilyName": "hebrew",
+     "isSource": true,
+     "isPrimary": true,
+     "direction": "rtl",
+     "text": [
+      "כֹּהֵן שֶׁמֵּכֵר בְהֶמְתּוֹ שֶׁלֹּא שְׁחָטָהּ, וְלֹקֵחַ אֶת הַמָּעוֹת וְהָלַךְ וְשָׁחַט בָּהֶן בְּהֵמָה אַחֶרֶת, הֲרִי זֶה מֻתָּר. שְׁחָטָהּ וְאַחַר כָּךְ מְכָרָהּ, הֲרִי זֶה מֻתָּר בִּגְזִיזָה: \n"
+     ]
+    }
+   ],
+   "available_versions": [],
+   "ref": "Mishnah Bekhorot 4:1",
+   "heRef": "משנה בכורות 4:1",
+   "sections": [
+    "4",
+    "1"
+   ],
+   "next": "",
+   "prev": "",
+   "warnings": [],
+   "__synthetic_note": "Bekhorot 3:2 fixtures are real API captures; other refs are synthetic test data."
+  },
+  "Bartenura on Mishnah Bekhorot 3:2::hebrew|Torat-Emet": {
+   "versions": [
+    {
+     "status": "locked",
+     "priority": 3,
+     "license": "CC-BY-NC",
+     "versionNotes": "",
+     "language": "he",
+     "versionSource": "https://www.sefaria.org",
+     "versionTitle": "Torat-Emet",
+     "versionTitleInHebrew": "",
+     "actualLanguage": "he",
+     "languageFamilyName": "hebrew",
+     "isSource": true,
+     "isPrimary": true,
+     "direction": "rtl",
+     "text": [
+      "אֵין חוֹשְׁשִׁין שֶׁמָּא בְנָהּ שֶׁל אַחֶרֶת הָיָה. שֶׁיְּהֵא הַבָּא אַחֲרָיו בְּכוֹר סָפֵק דְּנֵימָא הַךְ בְּהֵמָה לֹא יָלְדָה מֵעוֹלָם אֶלָּא שֶׁאָהֲבָה אֶת זֶה בֶּן חֲבֶרְתָּהּ, וְאִי מִשּׁוּם דְּאִית לָהּ חָלָב, הָא אִיכָּא מִעוּטָא דְּחוֹלְבוֹת אַף עַל פִּי שֶׁאֵינָן יוֹלְדוֹת, הָא וַדַּאי לֹא אָמְרִינַן, אֶלָּא בְנָהּ הוּא וּפְטוּרָה מִן הַבְּכוֹרָה:",
+      "מַבְכִּירוֹת. בַּחוּרוֹת שֶׁלֹּא יָלְדוּ עַד עַכְשָׁיו:",
+      "אֵין חוֹשְׁשִׁין שֶׁמָּא בְנָהּ שֶׁל זוֹ בָא לוֹ אֵצֶל זוֹ. דְּלֵחוּשׁ לְכֻלְּהוּ בִּסְפֵק בְּכוֹרוֹת, אֶלָּא וַדַּאי אוֹתָן הַכְּרוּכִין אַחַר הַמַּבְכִּירוֹת הָווּ בְּכוֹרוֹת וַדָּאִין, וְהַכְּרוּכִין אַחַר שֶׁאֵין מַבְכִּירוֹת הָווּ פְּשׁוּטִין וַדָּאִין. וַהֲלָכָה כְּרַבָּן שִׁמְעוֹן בֶּן גַּמְלִיאֵל:"
+     ]
+    }
+   ],
+   "available_versions": [],
+   "ref": "Bartenura on Mishnah Bekhorot 3:2",
+   "heRef": "ברטנורא על משנה בכורות ג׳:ב׳",
+   "sections": [
+    "3",
+    "2"
+   ],
+   "next": "",
+   "prev": "",
+   "warnings": [],
+   "__synthetic_note": "Bekhorot 3:2 fixtures are real API captures; other refs are synthetic test data."
+  },
+  "Bartenura on Mishnah Bekhorot 3:3::hebrew|Torat-Emet": {
+   "versions": [
+    {
+     "status": "locked",
+     "priority": 3,
+     "license": "CC-BY-NC",
+     "versionNotes": "",
+     "language": "he",
+     "versionSource": "https://www.sefaria.org",
+     "versionTitle": "Torat-Emet",
+     "versionTitleInHebrew": "",
+     "actualLanguage": "he",
+     "languageFamilyName": "hebrew",
+     "isSource": true,
+     "isPrimary": true,
+     "direction": "rtl",
+     "text": [
+      "כֵּיצַד מַפְרִישִׁין. שֶׁיִּהְיֶה הִפְרָשׁוֹ וְדַאי וְלֹא סָפֵק:",
+      "אֵין כְּלוּם. שֶׁלֹּא נִתְקַדֵּשׁ כְּלוּם עַד שֶׁיִּוָּלֵד:"
+     ]
+    }
+   ],
+   "available_versions": [],
+   "ref": "Bartenura on Mishnah Bekhorot 3:3",
+   "heRef": "ברטנורא על משנה בכורות 3:3",
+   "sections": [
+    "3",
+    "3"
+   ],
+   "next": "",
+   "prev": "",
+   "warnings": [],
+   "__synthetic_note": "Bekhorot 3:2 fixtures are real API captures; other refs are synthetic test data."
+  },
+  "Bartenura on Mishnah Bekhorot 3:4::hebrew|Torat-Emet": {
+   "versions": [
+    {
+     "status": "locked",
+     "priority": 3,
+     "license": "CC-BY-NC",
+     "versionNotes": "",
+     "language": "he",
+     "versionSource": "https://www.sefaria.org",
+     "versionTitle": "Torat-Emet",
+     "versionTitleInHebrew": "",
+     "actualLanguage": "he",
+     "languageFamilyName": "hebrew",
+     "isSource": true,
+     "isPrimary": true,
+     "direction": "rtl",
+     "text": [
+      "מַפְרִישׁ אֶת הָעֲגָלוֹת. בְּכוֹר בְּהֵמָה טְמֵאָה כְּגוֹן חֲמוֹר מֻתָּר בִּהְנָיָה אַחַר מִיתָה, דִּכְתִיב: וְאֶת חֲמֹר הַבְּכֹר תִּפְדֶּה:",
+      "וְאֵין נִמְלָכִין בָּהֶן. שֶׁלֹּא יֹאמַר הִיאָרֵךְ בּוֹ נְגַע, שֶׁמָּא יָבֹא לִידֵי תְּקָלָה:"
+     ]
+    }
+   ],
+   "available_versions": [],
+   "ref": "Bartenura on Mishnah Bekhorot 3:4",
+   "heRef": "ברטנורא על משנה בכורות 3:4",
+   "sections": [
+    "3",
+    "4"
+   ],
+   "next": "",
+   "prev": "",
+   "warnings": [],
+   "__synthetic_note": "Bekhorot 3:2 fixtures are real API captures; other refs are synthetic test data."
+  },
+  "Bartenura on Mishnah Bekhorot 4:1::hebrew|Torat-Emet": {
+   "versions": [
+    {
+     "status": "locked",
+     "priority": 3,
+     "license": "CC-BY-NC",
+     "versionNotes": "",
+     "language": "he",
+     "versionSource": "https://www.sefaria.org",
+     "versionTitle": "Torat-Emet",
+     "versionTitleInHebrew": "",
+     "actualLanguage": "he",
+     "languageFamilyName": "hebrew",
+     "isSource": true,
+     "isPrimary": true,
+     "direction": "rtl",
+     "text": [
+      "שֶׁלֹּא שְׁחָטָהּ. דְּאִי שָׁחַט וְאַחַר כָּךְ מְכָרָהּ, הֲרֵי זֶה מֻתָּר בִּהֲנָיָה מִיָּד:"
+     ]
+    }
+   ],
+   "available_versions": [],
+   "ref": "Bartenura on Mishnah Bekhorot 4:1",
+   "heRef": "ברטנורא על משנה בכורות 4:1",
+   "sections": [
+    "4",
+    "1"
+   ],
+   "next": "",
+   "prev": "",
+   "warnings": [],
+   "__synthetic_note": "Bekhorot 3:2 fixtures are real API captures; other refs are synthetic test data."
+  },
+  "Mishnah Bekhorot 3:2::english|William Davidson Edition - English": {
+   "versions": [
+    {
+     "status": "locked",
+     "priority": 3,
+     "license": "CC-BY-NC",
+     "versionNotes": "",
+     "language": "en",
+     "versionSource": "https://www.sefaria.org",
+     "versionTitle": "William Davidson Edition - English",
+     "versionTitleInHebrew": "",
+     "actualLanguage": "en",
+     "languageFamilyName": "english",
+     "isSource": false,
+     "isPrimary": true,
+     "direction": "ltr",
+     "text": [
+      "Rabban Shimon ben Gamliel says: In the case of one who purchases a nursing female animal from a gentile, he does not need to be concerned, i.e., take into account the possibility, that perhaps it was nursing the offspring of another animal. Rather, the buyer may assume it had previously given birth. In the case of one who enters amid his flock and sees mother animals that gave birth for the first time that were nursing, and also sees mother animals that gave birth not for the first time that were also nursing, he does not need to be concerned that perhaps the offspring of this animal came to that animal to be nursed, or that perhaps the offspring of that animal came to this animal to be nursed."
+     ]
+    }
+   ],
+   "available_versions": [],
+   "ref": "Mishnah Bekhorot 3:2",
+   "heRef": "משנה בכורות ג׳:ב׳",
+   "sections": [
+    "3",
+    "2"
+   ],
+   "next": "",
+   "prev": "",
+   "warnings": [],
+   "__synthetic_note": "Bekhorot 3:2 fixtures are real API captures; other refs are synthetic test data."
+  },
+  "Mishnah Bekhorot 3:2::english": {
+   "versions": [
+    {
+     "status": "locked",
+     "priority": 3,
+     "license": "CC-BY-NC",
+     "versionNotes": "",
+     "language": "en",
+     "versionSource": "https://www.sefaria.org",
+     "versionTitle": "William Davidson Edition - English",
+     "versionTitleInHebrew": "",
+     "actualLanguage": "en",
+     "languageFamilyName": "english",
+     "isSource": false,
+     "isPrimary": true,
+     "direction": "ltr",
+     "text": [
+      "Rabban Shimon ben Gamliel says: In the case of one who purchases a nursing female animal from a gentile, he does not need to be concerned, i.e., take into account the possibility, that perhaps it was nursing the offspring of another animal. Rather, the buyer may assume it had previously given birth. In the case of one who enters amid his flock and sees mother animals that gave birth for the first time that were nursing, and also sees mother animals that gave birth not for the first time that were also nursing, he does not need to be concerned that perhaps the offspring of this animal came to that animal to be nursed, or that perhaps the offspring of that animal came to this animal to be nursed."
+     ]
+    }
+   ],
+   "available_versions": [],
+   "ref": "Mishnah Bekhorot 3:2",
+   "heRef": "משנה בכורות ג׳:ב׳",
+   "sections": [
+    "3",
+    "2"
+   ],
+   "next": "",
+   "prev": "",
+   "warnings": [],
+   "__synthetic_note": "Bekhorot 3:2 fixtures are real API captures; other refs are synthetic test data."
+  },
+  "Mishnah Bekhorot 3:3::english": {
+   "versions": [
+    {
+     "status": "locked",
+     "priority": 3,
+     "license": "CC-BY-NC",
+     "versionNotes": "",
+     "language": "en",
+     "versionSource": "https://www.sefaria.org",
+     "versionTitle": "William Davidson Edition - English",
+     "versionTitleInHebrew": "",
+     "actualLanguage": "en",
+     "languageFamilyName": "english",
+     "isSource": false,
+     "isPrimary": true,
+     "direction": "ltr",
+     "text": [
+      "English translation of Mishnah Bekhorot 3:3 (synthetic test fixture). כיצד מפרישין בכורות. עמד בעדר ואמר: כל שיולד בעדרי זה הרי הוא קדש, אין כלום. שלא"
+     ]
+    }
+   ],
+   "available_versions": [],
+   "ref": "Mishnah Bekhorot 3:3",
+   "heRef": "משנה בכורות 3:3",
+   "sections": [
+    "3",
+    "3"
+   ],
+   "next": "",
+   "prev": "",
+   "warnings": [],
+   "__synthetic_note": "Bekhorot 3:2 fixtures are real API captures; other refs are synthetic test data."
+  },
+  "Mishnah Bekhorot 3:4::english": {
+   "versions": [
+    {
+     "status": "locked",
+     "priority": 3,
+     "license": "CC-BY-NC",
+     "versionNotes": "",
+     "language": "en",
+     "versionSource": "https://www.sefaria.org",
+     "versionTitle": "William Davidson Edition - English",
+     "versionTitleInHebrew": "",
+     "actualLanguage": "en",
+     "languageFamilyName": "english",
+     "isSource": false,
+     "isPrimary": true,
+     "direction": "ltr",
+     "text": [
+      "English translation of Mishnah Bekhorot 3:4 (synthetic test fixture). מפריש את העגלות ואת הגדיים ואת הטלאים ואת הבכורות, ושוחט אותן בחצר, ואוכל אותן ב"
+     ]
+    }
+   ],
+   "available_versions": [],
+   "ref": "Mishnah Bekhorot 3:4",
+   "heRef": "משנה בכורות 3:4",
+   "sections": [
+    "3",
+    "4"
+   ],
+   "next": "",
+   "prev": "",
+   "warnings": [],
+   "__synthetic_note": "Bekhorot 3:2 fixtures are real API captures; other refs are synthetic test data."
+  },
+  "Mishnah Bekhorot 4:1::english": {
+   "versions": [
+    {
+     "status": "locked",
+     "priority": 3,
+     "license": "CC-BY-NC",
+     "versionNotes": "",
+     "language": "en",
+     "versionSource": "https://www.sefaria.org",
+     "versionTitle": "William Davidson Edition - English",
+     "versionTitleInHebrew": "",
+     "actualLanguage": "en",
+     "languageFamilyName": "english",
+     "isSource": false,
+     "isPrimary": true,
+     "direction": "ltr",
+     "text": [
+      "English translation of Mishnah Bekhorot 4:1 (synthetic test fixture). כהן שמכר בהמתו שלא שחטה, ולקח את המעות והלך ושחט בהן בהמה אחרת, הרי זה מתר. שחטה"
+     ]
+    }
+   ],
+   "available_versions": [],
+   "ref": "Mishnah Bekhorot 4:1",
+   "heRef": "משנה בכורות 4:1",
+   "sections": [
+    "4",
+    "1"
+   ],
+   "next": "",
+   "prev": "",
+   "warnings": [],
+   "__synthetic_note": "Bekhorot 3:2 fixtures are real API captures; other refs are synthetic test data."
+  }
+ },
+ "calendars": {
+  "2026-9-5": {
+   "date": "2026-09-05",
+   "timezone": "UTC",
+   "calendar_items": [
+    {
+     "title": {
+      "en": "Parashat Hashavua",
+      "he": "פרשת השבוע"
+     },
+     "displayValue": {
+      "en": "Nitzavim-Vayeilech",
+      "he": "נצבים-וילך"
+     },
+     "url": "Deuteronomy.29.9-31.30",
+     "ref": "Deuteronomy 29:9-31:30",
+     "order": 1,
+     "category": "Tanakh"
+    }
+   ]
+  },
+  "2026-9-12": {
+   "date": "2026-09-12",
+   "timezone": "UTC",
+   "calendar_items": [
+    {
+     "title": {
+      "en": "Parashat Hashavua",
+      "he": "פרשת השבוע"
+     },
+     "displayValue": {
+      "en": "Rosh Hashana I",
+      "he": "ראש השנה א"
+     },
+     "url": "Deuteronomy.29.9-31.30",
+     "ref": "Deuteronomy 29:9-31:30",
+     "order": 1,
+     "category": "Tanakh"
+    }
+   ]
+  },
+  "2026-9-19": {
+   "date": "2026-09-19",
+   "timezone": "UTC",
+   "calendar_items": [
+    {
+     "title": {
+      "en": "Parashat Hashavua",
+      "he": "פרשת השבוע"
+     },
+     "displayValue": {
+      "en": "Haazinu",
+      "he": "האזינו"
+     },
+     "url": "Deuteronomy.29.9-31.30",
+     "ref": "Deuteronomy 29:9-31:30",
+     "order": 1,
+     "category": "Tanakh"
+    }
+   ]
+  },
+  "2026-9-26": {
+   "date": "2026-09-26",
+   "timezone": "UTC",
+   "calendar_items": [
+    {
+     "title": {
+      "en": "Parashat Hashavua",
+      "he": "פרשת השבוע"
+     },
+     "displayValue": {
+      "en": "Sukkot",
+      "he": "סוכות"
+     },
+     "url": "Deuteronomy.29.9-31.30",
+     "ref": "Deuteronomy 29:9-31:30",
+     "order": 1,
+     "category": "Tanakh"
+    }
+   ]
+  }
+ }
+}

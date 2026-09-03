@@ -1,0 +1,365 @@
+/* ==========================================================================
+   poster.css - styles for the Letter-size (816x1056 px = 8.5"x11" @96dpi)
+   poster page. This stylesheet is deliberately free of media queries,
+   box-shadows and other features html2canvas renders imperfectly, so the
+   preview, the PDF and the print output all look identical.
+   ========================================================================== */
+
+/* -- base page ---------------------------------------------------------- */
+
+.poster-page {
+  --pg-bg: #fdf8ec;
+  --pg-ink: #3a2c14;
+  --pg-accent: #8a6d3b;
+  --pg-muted: #7c6a4d;
+  --pg-frame: #6b4f2a;
+  --pg-frame-style: double;
+  --pg-font: 'Frank Ruhl Libre', 'David Libre', Georgia, serif;
+  --pg-title-color: var(--pg-ink);
+  --pg-head-band: transparent;
+  --pg-head-band-ink: var(--pg-ink);
+
+  position: relative;
+  width: 816px;
+  height: 1056px;
+  background: var(--pg-bg);
+  color: var(--pg-ink);
+  font-family: var(--pg-font);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* uploaded background image + readability overlay */
+.poster-page .pg-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  z-index: 0;
+}
+.poster-page .pg-overlay {
+  position: absolute;
+  inset: 0;
+  background: #ffffff;
+  opacity: var(--pg-overlay-alpha, 0.85);
+  z-index: 1;
+}
+.poster-page.tpl-night .pg-overlay,
+.poster-page.tpl-auto[data-dark='1'] .pg-overlay { background: #0d1526; }
+
+/* decorative frames */
+.poster-page .pg-frame {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+}
+.poster-page .pg-frame-outer {
+  inset: 14px;
+  border: 8px var(--pg-frame-style, double) var(--pg-frame);
+}
+.poster-page .pg-frame-inner {
+  inset: 28px;
+  border: 1.5px solid var(--pg-frame);
+  opacity: 0.55;
+}
+.poster-page.frame-none .pg-frame { display: none; }
+.poster-page.frame-solid .pg-frame-outer { border-style: solid; border-width: 5px; }
+.poster-page.frame-double .pg-frame-outer { border-style: double; border-width: 8px; }
+
+/* -- content column ------------------------------------------------------ */
+
+.poster-page .pg-content {
+  position: absolute;
+  inset: 46px 56px 40px 56px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* letterhead */
+.poster-page .pg-head { text-align: center; flex: none; }
+.poster-page .pg-logo {
+  display: block;
+  margin: 0 auto 10px;
+  max-height: 108px;
+  max-width: 70%;
+  object-fit: contain;
+}
+.poster-page .pg-inst {
+  font-size: 34px;
+  font-weight: 900;
+  line-height: 1.25;
+  color: var(--pg-head-band-ink);
+  background: var(--pg-head-band);
+  margin: 0 auto;
+  padding: 2px 18px;
+}
+.poster-page .pg-dedication {
+  margin-top: 6px;
+  font-size: 19px;
+  color: var(--pg-muted);
+  font-weight: 500;
+}
+.poster-page .pg-head + .pg-info { margin-top: 16px; }
+
+/* info bar */
+.poster-page .pg-info {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 7px 12px;
+  margin: 14px auto 0;
+  max-width: 100%;
+  direction: inherit;
+}
+.poster-page .pg-badge {
+  background: var(--pg-accent);
+  color: #fff;
+  font-size: 16.5px;
+  font-weight: 700;
+  padding: 3px 14px;
+}
+.poster-page .pg-info-bit {
+  font-size: 18.5px;
+  font-weight: 600;
+  color: var(--pg-muted);
+}
+.poster-page .pg-info-bit:not(:last-child)::after {
+  content: '•';
+  margin-inline-start: 12px;
+  color: var(--pg-accent);
+}
+
+/* mishna reference */
+.poster-page .pg-ref {
+  flex: none;
+  text-align: center;
+  font-size: 30px;
+  font-weight: 900;
+  color: var(--pg-title-color);
+  margin: 12px 0 4px;
+  line-height: 1.3;
+}
+.poster-page .pg-ref::after {
+  content: '';
+  display: block;
+  width: 130px;
+  height: 3px;
+  background: var(--pg-accent);
+  margin: 10px auto 0;
+}
+
+/* main text area (the auto-fit region) */
+.poster-page .pg-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding-top: 8px;
+}
+.poster-page .pg-text {
+  font-size: 33px;
+  line-height: 1.87;
+  font-weight: 500;
+}
+.poster-page .pg-text p { margin: 0 0 0.42em; }
+.poster-page .pg-text p:last-child { margin-bottom: 0; }
+.poster-page .pg-text b, .poster-page .pg-text strong { font-weight: 800; }
+
+/* commentaries */
+.poster-page .pg-commentary { margin-top: 14px; }
+.poster-page .pg-comm-block + .pg-comm-block { margin-top: 12px; }
+.poster-page .pg-comm-label {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--pg-accent);
+  display: inline-block;
+  padding: 1px 10px;
+  margin: 0 0 6px;
+}
+.poster-page .pg-comm-text {
+  font-size: 16px;
+  line-height: 1.72;
+  color: var(--pg-comm-ink, var(--pg-ink));
+  border-top: 2px solid var(--pg-comm-rule, var(--pg-accent));
+  padding-top: 6px;
+}
+/* explicit physical alignment (html2canvas does not resolve text-align:start) */
+.poster-he .pg-text, .poster-he .pg-comm-text { text-align: right; }
+.poster-en .pg-text, .poster-en .pg-comm-text { text-align: left; }
+.poster-page .pg-comm-text p { margin: 0 0 0.5em; }
+.poster-page .pg-comm-text p:last-child { margin-bottom: 0; }
+
+/* footer */
+.poster-page .pg-foot {
+  flex: none;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1.5px solid var(--pg-foot-rule, var(--pg-frame));
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  font-size: 12.5px;
+  color: var(--pg-muted);
+}
+.poster-page .pg-foot-note { display: flex; gap: 12px; flex-wrap: wrap; }
+.poster-page .pg-pageno { font-weight: 700; white-space: nowrap; }
+
+/* English posters: slightly different typography */
+.poster-page.poster-en .pg-text { font-weight: 400; line-height: 1.65; }
+
+/* ==========================================================================
+   Built-in templates
+   ========================================================================== */
+
+/* -- Classic Parchment (default palette already set above) --------------- */
+.tpl-classic { }
+
+/* -- Modern Minimal ------------------------------------------------------ */
+.tpl-modern {
+  --pg-bg: #ffffff;
+  --pg-ink: #1f2937;
+  --pg-accent: #2563eb;
+  --pg-muted: #6b7280;
+  --pg-frame: #dbe3ef;
+  --pg-frame-style: solid;
+  --pg-font: 'Heebo', 'Miriam Libre', sans-serif;
+}
+.tpl-modern .pg-frame-outer { border-width: 3px; }
+.tpl-modern .pg-inst { color: var(--pg-ink); background: transparent; }
+.tpl-modern .pg-ref { font-weight: 800; }
+.tpl-modern .pg-text { font-weight: 400; line-height: 1.8; }
+.tpl-modern .pg-comm-text { border-top-width: 3px; border-top-color: var(--pg-accent); }
+
+/* -- Royal Blue & Gold --------------------------------------------------- */
+.tpl-royal {
+  --pg-bg: #fffdf7;
+  --pg-ink: #22283a;
+  --pg-accent: #c9a227;
+  --pg-muted: #6d7386;
+  --pg-frame: #1e3a5f;
+  --pg-frame-style: double;
+  --pg-font: 'Frank Ruhl Libre', Georgia, serif;
+  --pg-head-band: #1e3a5f;
+  --pg-head-band-ink: #ffffff;
+}
+.tpl-royal .pg-inst {
+  padding: 6px 26px;
+  font-weight: 900;
+}
+.tpl-royal .pg-badge { background: #1e3a5f; }
+.tpl-royal .pg-info-bit { color: #1e3a5f; }
+.tpl-royal .pg-comm-label { background: #1e3a5f; }
+
+/* -- Elegant Ivory ------------------------------------------------------- */
+.tpl-elegant {
+  --pg-bg: #fbfaf7;
+  --pg-ink: #151515;
+  --pg-accent: #111111;
+  --pg-muted: #6f6f6f;
+  --pg-frame: #151515;
+  --pg-frame-style: solid;
+  --pg-font: 'David Libre', 'Frank Ruhl Libre', Georgia, serif;
+}
+.tpl-elegant .pg-frame-outer { border-width: 3px; }
+.tpl-elegant .pg-frame-inner { opacity: 0.9; inset: 24px; }
+.tpl-elegant .pg-inst { font-weight: 700; }
+.tpl-elegant .pg-badge { background: #151515; }
+.tpl-elegant .pg-comm-label { background: #151515; }
+
+/* -- Fresh Garden -------------------------------------------------------- */
+.tpl-fresh {
+  --pg-bg: #f4f9f4;
+  --pg-ink: #14301c;
+  --pg-accent: #15803d;
+  --pg-muted: #5f7266;
+  --pg-frame: #2f6b43;
+  --pg-frame-style: solid;
+  --pg-font: 'Miriam Libre', 'Heebo', sans-serif;
+}
+.tpl-fresh .pg-frame-outer { border-width: 4px; }
+.tpl-fresh .pg-inst { color: var(--pg-ink); background: transparent; }
+
+/* -- Night Learning (dark) ------------------------------------------------ */
+.tpl-night {
+  --pg-bg: #14213d;
+  --pg-ink: #f4f7fb;
+  --pg-accent: #fca311;
+  --pg-muted: #a9b4c9;
+  --pg-frame: #fca311;
+  --pg-frame-style: double;
+  --pg-font: 'Frank Ruhl Libre', Georgia, serif;
+}
+.tpl-night .pg-inst { color: #fff; background: transparent; text-shadow: none; }
+.tpl-night .pg-badge { color: #14213d; }
+.tpl-night .pg-comm-text { color: #d9e0ea; }
+
+/* -- Auto-generated ("Surprise me") ---------------------------------------- */
+.tpl-auto {
+  --pg-font: 'Frank Ruhl Libre', Georgia, serif;
+}
+.tpl-auto .pg-frame-outer { border-style: var(--pg-frame-style, double); }
+
+/* ==========================================================================
+   Preview scaling & print (the SAME page element is previewed and printed)
+   ========================================================================== */
+
+.preview-canvas {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 816 / 1056;
+}
+
+.preview-canvas .poster-page {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
+}
+
+/* hidden render stage (attached, laid out, but off-screen) */
+#renderStage {
+  position: fixed;
+  top: 0;
+  left: -11000px;
+  width: 816px;
+  z-index: -1;
+  pointer-events: none;
+}
+#renderStage .poster-page { margin-bottom: 24px; }
+
+/* print: every poster becomes exactly one Letter page */
+@media print {
+  @page { size: letter portrait; margin: 0; }
+  body { background: #fff; }
+  body > *:not(#printStage) { display: none !important; }
+  #printStage {
+    display: block !important;
+    position: static !important;
+  }
+  #printStage .poster-page {
+    position: static !important;
+    width: 8.5in !important;
+    height: 11in !important;
+    transform: none !important;
+    page-break-after: always;
+    break-after: page;
+  }
+  #printStage .poster-page:last-child { page-break-after: auto; break-after: auto; }
+}
+#printStage { display: none; }
+
+/* explicit rule colors per template (rgba keeps html2canvas happy) */
+.tpl-classic { --pg-comm-rule: rgba(107, 79, 42, 0.45); --pg-comm-ink: #4c3d24; --pg-foot-rule: rgba(107, 79, 42, 0.55); }
+.tpl-modern  { --pg-comm-rule: rgba(37, 99, 235, 0.35); --pg-comm-ink: #334155; --pg-foot-rule: rgba(219, 227, 239, 0.9); }
+.tpl-royal   { --pg-comm-rule: rgba(30, 58, 95, 0.30); --pg-comm-ink: #3a4257; --pg-foot-rule: rgba(30, 58, 95, 0.4); }
+.tpl-elegant { --pg-comm-rule: rgba(21, 21, 21, 0.35); --pg-comm-ink: #2e2e2e; --pg-foot-rule: rgba(21, 21, 21, 0.5); }
+.tpl-fresh   { --pg-comm-rule: rgba(21, 128, 61, 0.35); --pg-comm-ink: #2b4a35; --pg-foot-rule: rgba(47, 107, 67, 0.5); }
+.tpl-night   { --pg-comm-rule: rgba(252, 163, 17, 0.5); --pg-comm-ink: #d9e0ea; --pg-foot-rule: rgba(252, 163, 17, 0.45); }

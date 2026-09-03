@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mishna Poster Generator · מחולל כרזות משנה</title>
+  <meta name="description" content="Generate printable Letter-size daily Mishnah learning posters from open-source Sefaria texts. One mishna per page, Hebrew with nikud, Bartenura commentary, custom templates." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231e3a5f'/%3E%3Ctext x='32' y='45' font-size='36' text-anchor='middle' fill='%23fca311' font-family='serif'%3E%D7%9E%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="assets/css/fonts.css" />
+  <link rel="stylesheet" href="assets/css/main.css" />
+  <link rel="stylesheet" href="assets/css/poster.css" />
+  <script src="assets/vendor/jspdf.umd.min.js" defer></script>
+  <script src="assets/vendor/html2canvas.min.js" defer></script>
+</head>
+<body>
+  <!-- off-screen render stage: real-size posters are built here, then cloned
+       into the preview and rasterized into the PDF -->
+  <div id="renderStage" aria-hidden="true"></div>
+  <div id="printStage" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">מ</div>
+        <div class="brand-text">
+          <h1 data-i18n="appTitle">Mishna Poster Generator</h1>
+          <p data-i18n="appSubtitle">Daily Mishnah learning posters — Letter size, one mishna per page</p>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <a class="sefaria-credit" href="https://developers.sefaria.org" target="_blank" rel="noopener" data-i18n="poweredBy">Texts from Sefaria.org</a>
+        <button id="langToggle" class="btn ghost" type="button" title="עברית / English">עברית</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- ===================== settings column ===================== -->
+    <section class="form-panel" aria-label="Settings">
+
+      <!-- 1. schedule -->
+      <div class="card">
+        <h2 class="card-title"><span class="step-num">1</span><span data-i18n="step1">Schedule</span></h2>
+
+        <div class="grid-2">
+          <label class="field">
+            <span class="field-label" data-i18n="startDate">First learning day</span>
+            <input type="date" id="startDate" />
+          </label>
+          <label class="field">
+            <span class="field-label" data-i18n="mishnaCount">Number of mishnas</span>
+            <input type="number" id="count" min="1" max="30" step="1" value="7" />
+          </label>
+        </div>
+
+        <div class="field">
+          <span class="field-label"><span data-i18n="learningDays">Days of the week you learn</span>
+            <span class="wd-actions">
+              <button type="button" class="linklike" id="wdAll" data-i18n="allDays">All</button>
+              <button type="button" class="linklike" id="wdNone" data-i18n="noDays">None</button>
+            </span>
+          </span>
+          <div class="weekday-row" id="weekdayRow" role="group"></div>
+        </div>
+
+        <div class="grid-2">
+          <label class="field check">
+            <input type="checkbox" id="skipYomTov" checked />
+            <span data-i18n="skipYomTov">Skip Yom Tov (Jewish holidays)</span>
+          </label>
+          <label class="field">
+            <span class="field-label" data-i18n="diaspora">Diaspora calendar (2nd day of Yom Tov)</span>
+            <select id="diasporaSel">
+              <option value="diaspora" data-i18n="diaspora">Diaspora calendar (2nd day of Yom Tov)</option>
+              <option value="israel" data-i18n="israel">Israel calendar</option>
+            </select>
+          </label>
+        </div>
+
+        <h3 class="sub-title" data-i18n="startRef">Starting mishna</h3>
+        <div class="grid-3">
+          <label class="field">
+            <span class="field-label" data-i18n="masechet">Tractate</span>
+            <select id="masechetSel"></select>
+          </label>
+          <label class="field">
+            <span class="field-label" data-i18n="chapter">Chapter</span>
+            <select id="chapterSel"></select>
+          </label>
+          <label class="field">
+            <span class="field-label" data-i18n="mishna">Mishna</span>
+            <select id="mishnaSel"></select>
+          </label>
+        </div>
+        <p class="hint" id="refHint"></p>
+      </div>
+
+      <!-- 2. content -->
+      <div class="card">
+        <h2 class="card-title"><span class="step-num">2</span><span data-i18n="step2">Content</span></h2>
+
+        <div class="grid-2">
+          <label class="field">
+            <span class="field-label" data-i18n="textLanguage">Mishna text language</span>
+            <select id="textLang">
+              <option value="he" data-i18n="hebrew">Hebrew</option>
+              <option value="en" data-i18n="english">English</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-label" data-i18n="nikud">Nikud (vowel points)</span>
+            <select id="nikudSel">
+              <option value="on" data-i18n="withNikud">With nikud</option>
+              <option value="off" data-i18n="withoutNikud">Without nikud</option>
+            </select>
+          </label>
+        </div>
+
+        <label class="field" id="hebrewVersionField">
+          <span class="field-label" data-i18n="hebrewVersion">Hebrew text edition</span>
+          <select id="hebrewVersionSel"></select>
+        </label>
+
+        <label class="field hidden" id="englishVersionField">
+          <span class="field-label" data-i18n="englishVersion">English translation</span>
+          <select id="englishVersionSel"></select>
+        </label>
+
+        <div class="field">
+          <span class="field-label" data-i18n="commentaries">Commentaries</span>
+          <div class="comm-toggles">
+            <label class="check chip"><input type="checkbox" id="commBartenura" checked /><span data-i18n="commentaryBartenura">Bartenura</span></label>
+            <label class="check chip"><input type="checkbox" id="commTosafotYT" /><span data-i18n="commentaryTosafotYT">Tosafot Yom Tov</span></label>
+            <label class="check chip"><input type="checkbox" id="commRambam" /><span data-i18n="commentaryRambam">Rambam's Commentary</span></label>
+          </div>
+        </div>
+
+        <label class="field" id="commLangField">
+          <span class="field-label" data-i18n="commentaryLang">Commentary language</span>
+          <select id="commLangSel">
+            <option value="he" data-i18n="hebrew">Hebrew</option>
+            <option value="en" data-i18n="english">English</option>
+          </select>
+        </label>
+        <p class="hint" data-i18n-en="Bartenura is available with an English translation; other commentaries are Hebrew." data-i18n-he="לברטנורא קיים תרגום לאנגלית; שאר הפירושים בעברית."></p>
+
+        <label class="field check">
+          <input type="checkbox" id="showRef" checked />
+          <span data-i18n="showRef">Show mishna reference in the poster</span>
+        </label>
+
+        <h3 class="sub-title" data-i18n="infoLine">Poster info line</h3>
+        <div class="comm-toggles">
+          <label class="check chip"><input type="checkbox" id="showDateInfo" checked /><span data-i18n="colHebDate">Hebrew date</span></label>
+          <label class="check chip"><input type="checkbox" id="showParshaInfo" checked /><span data-i18n="colParsha">Parasha</span></label>
+          <label class="check chip"><input type="checkbox" id="showDayCountInfo" checked /><span data-i18n="dayCount">Day counter</span></label>
+          <label class="check chip"><input type="checkbox" id="showAttributionInfo" checked /><span data-i18n="attribution">Sefaria attribution</span></label>
+        </div>
+      </div>
+
+      <!-- 3. design -->
+      <div class="card">
+        <h2 class="card-title"><span class="step-num">3</span><span data-i18n="step3">Design</span></h2>
+
+        <div class="field">
+          <span class="field-label">
+            <span data-i18n="template">Template</span>
+            <button type="button" class="linklike" id="surpriseBtn">🎲 <span data-i18n="surprise">Surprise me</span></button>
+          </span>
+          <div class="template-grid" id="templateGrid" role="radiogroup"></div>
+        </div>
+
+        <div class="grid-2">
+          <label class="field">
+            <span class="field-label" data-i18n="posterFont">Poster font</span>
+            <select id="fontSel"></select>
+          </label>
+          <label class="field">
+            <span class="field-label" data-i18n="accentColor">Accent color</span>
+            <input type="color" id="accentColor" value="#8a6d3b" class="color-input" />
+          </label>
+        </div>
+
+        <label class="field">
+          <span class="field-label" data-i18n="institution">Institution / letterhead name</span>
+          <input type="text" id="institution" data-i18n-ph="institutionPh" placeholder="e.g. Congregation Bnei Torah" maxlength="80" />
+        </label>
+        <label class="field">
+          <span class="field-label" data-i18n="dedication">Dedication line (optional)</span>
+          <input type="text" id="dedication" data-i18n-ph="dedicationPh" placeholder="e.g. In loving memory of ..." maxlength="120" />
+        </label>
+        <label class="field">
+          <span class="field-label" data-i18n="footerNote">Footer line (optional)</span>
+          <input type="text" id="footerNote" data-i18n-ph="footerNotePh" placeholder="e.g. Questions? info@shul.org" maxlength="120" />
+        </label>
+
+        <div class="grid-2">
+          <div class="field">
+            <span class="field-label" data-i18n="letterheadImg">Letterhead / logo image</span>
+            <div class="file-row">
+              <input type="file" id="logoFile" accept="image/png,image/jpeg,image/webp,image/svg+xml" />
+              <button type="button" class="btn ghost small hidden" id="logoRemove" data-i18n="remove">Remove</button>
+            </div>
+            <img id="logoPreview" class="upload-preview hidden" alt="" />
+          </div>
+          <div class="field">
+            <span class="field-label" data-i18n="bgImg">Full page background image</span>
+            <div class="file-row">
+              <input type="file" id="bgFile" accept="image/png,image/jpeg,image/webp" />
+              <button type="button" class="btn ghost small hidden" id="bgRemove" data-i18n="remove">Remove</button>
+            </div>
+            <img id="bgPreview" class="upload-preview hidden" alt="" />
+          </div>
+        </div>
+
+        <label class="field" id="overlayField">
+          <span class="field-label"><span data-i18n="overlay">Text protection overlay</span> <span id="overlayVal" class="range-val"></span></span>
+          <input type="range" id="bgOverlay" min="0.4" max="1" step="0.05" value="0.85" />
+        </label>
+      </div>
+
+      <!-- 4. generate -->
+      <div class="card" id="generateCard">
+        <h2 class="card-title"><span class="step-num">4</span><span data-i18n="step4">Generate</span></h2>
+
+        <button id="buildBtn" class="btn primary big" type="button" data-i18n="build">Load texts &amp; preview</button>
+
+        <div class="progress-row hidden" id="progressRow">
+          <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
+          <span class="progress-label" id="progressLabel"></span>
+        </div>
+
+        <p class="status-line" id="statusLine" role="status"></p>
+
+        <div id="scheduleWrap" class="hidden">
+          <h3 class="sub-title" data-i18n="scheduleTitle">Learning schedule</h3>
+          <div class="table-wrap">
+            <table class="schedule-table" id="scheduleTable">
+              <thead></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="actions-row hidden" id="actionsRow">
+          <div class="field">
+            <span class="field-label" data-i18n="quality">PDF quality</span>
+            <select id="qualitySel">
+              <option value="high" data-i18n="qualityHigh">Print (288 DPI)</option>
+              <option value="draft" data-i18n="qualityDraft">Screen (192 DPI)</option>
+              <option value="ultra" data-i18n="qualityUltra">Poster (384 DPI)</option>
+            </select>
+          </div>
+          <div class="action-buttons">
+            <button id="downloadPdfBtn" class="btn primary big" type="button" data-i18n="downloadPdf">Download PDF</button>
+            <button id="downloadPngBtn" class="btn" type="button" data-i18n="downloadPng">PNG (this page)</button>
+            <button id="printBtn" class="btn" type="button" data-i18n="print">Print</button>
+          </div>
+        </div>
+        <p class="hint" id="warnLine"></p>
+      </div>
+    </section>
+
+    <!-- ===================== preview column ===================== -->
+    <section class="preview-panel" id="previewPanel" aria-label="Poster preview">
+      <div class="preview-card">
+        <div class="preview-head">
+          <h2 data-i18n="previewTitle">Poster preview</h2>
+          <div class="preview-nav">
+            <button id="prevPageBtn" class="btn ghost small" type="button" aria-label="Previous page">‹</button>
+            <span id="pageIndicator">–</span>
+            <button id="nextPageBtn" class="btn ghost small" type="button" aria-label="Next page">›</button>
+          </div>
+        </div>
+        <div class="preview-canvas" id="previewCanvas">
+          <div class="preview-empty" id="previewEmpty">
+            <div class="preview-empty-inner">
+              <div class="pe-mark">מ</div>
+              <p data-i18n="appSubtitle">Daily Mishnah learning posters — Letter size, one mishna per page</p>
+            </div>
+          </div>
+        </div>
+        <p class="preview-note" id="previewNote"></p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <p><span data-i18n="madeWith">Generated with the Mishna Poster Generator</span> · <a href="https://developers.sefaria.org" target="_blank" rel="noopener">Sefaria.org</a> · CC BY</p>
+  </footer>
+
+  <div class="mobile-tabs" id="mobileTabs">
+    <button type="button" class="mobile-tab active" data-tab="settings" data-i18n="step1">Settings</button>
+    <button type="button" class="mobile-tab" data-tab="preview" data-i18n="previewTitle">Preview</button>
+  </div>
+
+  <script type="module" src="assets/js/main.js"></script>
+</body>
+</html>

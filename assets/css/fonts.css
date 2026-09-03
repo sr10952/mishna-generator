@@ -1,0 +1,66 @@
+/* Self-hosted fonts (Google Fonts / OFL, via @fontsource).
+   Hebrew + Latin subsets, only the weights the posters use. */
+
+/* Frank Ruhl Libre - classic Israeli book serif, beautiful with nikud */
+@font-face { font-family: 'Frank Ruhl Libre'; font-style: normal; font-weight: 300; font-display: swap;
+  src: url('../fonts/frl-hebrew-300.woff2') format('woff2'); unicode-range: U+0590-05FF, U+200C-200F, U+20AA, U+25CC, U+FB1D-FB4F; }
+@font-face { font-family: 'Frank Ruhl Libre'; font-style: normal; font-weight: 300; font-display: swap;
+  src: url('../fonts/frl-latin-300.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F; }
+@font-face { font-family: 'Frank Ruhl Libre'; font-style: normal; font-weight: 400; font-display: swap;
+  src: url('../fonts/frl-hebrew-400.woff2') format('woff2'); unicode-range: U+0590-05FF, U+200C-200F, U+20AA, U+25CC, U+FB1D-FB4F; }
+@font-face { font-family: 'Frank Ruhl Libre'; font-style: normal; font-weight: 400; font-display: swap;
+  src: url('../fonts/frl-latin-400.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F; }
+@font-face { font-family: 'Frank Ruhl Libre'; font-style: normal; font-weight: 500; font-display: swap;
+  src: url('../fonts/frl-hebrew-500.woff2') format('woff2'); unicode-range: U+0590-05FF, U+200C-200F, U+20AA, U+25CC, U+FB1D-FB4F; }
+@font-face { font-family: 'Frank Ruhl Libre'; font-style: normal; font-weight: 500; font-display: swap;
+  src: url('../fonts/frl-latin-500.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F; }
+@font-face { font-family: 'Frank Ruhl Libre'; font-style: normal; font-weight: 700; font-display: swap;
+  src: url('../fonts/frl-hebrew-700.woff2') format('woff2'); unicode-range: U+0590-05FF, U+200C-200F, U+20AA, U+25CC, U+FB1D-FB4F; }
+@font-face { font-family: 'Frank Ruhl Libre'; font-style: normal; font-weight: 700; font-display: swap;
+  src: url('../fonts/frl-latin-700.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F; }
+@font-face { font-family: 'Frank Ruhl Libre'; font-style: normal; font-weight: 900; font-display: swap;
+  src: url('../fonts/frl-hebrew-900.woff2') format('woff2'); unicode-range: U+0590-05FF, U+200C-200F, U+20AA, U+25CC, U+FB1D-FB4F; }
+@font-face { font-family: 'Frank Ruhl Libre'; font-style: normal; font-weight: 900; font-display: swap;
+  src: url('../fonts/frl-latin-900.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F; }
+
+/* David Libre - traditional "David" look */
+@font-face { font-family: 'David Libre'; font-style: normal; font-weight: 400; font-display: swap;
+  src: url('../fonts/david-hebrew-400.woff2') format('woff2'); unicode-range: U+0590-05FF, U+200C-200F, U+20AA, U+25CC, U+FB1D-FB4F; }
+@font-face { font-family: 'David Libre'; font-style: normal; font-weight: 400; font-display: swap;
+  src: url('../fonts/david-latin-400.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F; }
+@font-face { font-family: 'David Libre'; font-style: normal; font-weight: 500; font-display: swap;
+  src: url('../fonts/david-hebrew-500.woff2') format('woff2'); unicode-range: U+0590-05FF, U+200C-200F, U+20AA, U+25CC, U+FB1D-FB4F; }
+@font-face { font-family: 'David Libre'; font-style: normal; font-weight: 500; font-display: swap;
+  src: url('../fonts/david-latin-500.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F; }
+@font-face { font-family: 'David Libre'; font-style: normal; font-weight: 700; font-display: swap;
+  src: url('../fonts/david-hebrew-700.woff2') format('woff2'); unicode-range: U+0590-05FF, U+200C-200F, U+20AA, U+25CC, U+FB1D-FB4F; }
+@font-face { font-family: 'David Libre'; font-style: normal; font-weight: 700; font-display: swap;
+  src: url('../fonts/david-latin-700.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F; }
+
+/* Miriam Libre - modern Hebrew */
+@font-face { font-family: 'Miriam Libre'; font-style: normal; font-weight: 400; font-display: swap;
+  src: url('../fonts/miriam-hebrew-400.woff2') format('woff2'); unicode-range: U+0590-05FF, U+200C-200F, U+20AA, U+25CC, U+FB1D-FB4F; }
+@font-face { font-family: 'Miriam Libre'; font-style: normal; font-weight: 400; font-display: swap;
+  src: url('../fonts/miriam-latin-400.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F; }
+@font-face { font-family: 'Miriam Libre'; font-style: normal; font-weight: 700; font-display: swap;
+  src: url('../fonts/miriam-hebrew-700.woff2') format('woff2'); unicode-range: U+0590-05FF, U+200C-200F, U+20AA, U+25CC, U+FB1D-FB4F; }
+@font-face { font-family: 'Miriam Libre'; font-style: normal; font-weight: 700; font-display: swap;
+  src: url('../fonts/miriam-latin-700.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F; }
+
+/* Heebo - clean UI + poster sans (Hebrew & Latin) */
+@font-face { font-family: 'Heebo'; font-style: normal; font-weight: 300; font-display: swap;
+  src: url('../fonts/heebo-hebrew-300.woff2') format('woff2'); unicode-range: U+0590-05FF, U+200C-200F, U+20AA, U+25CC, U+FB1D-FB4F; }
+@font-face { font-family: 'Heebo'; font-style: normal; font-weight: 300; font-display: swap;
+  src: url('../fonts/heebo-latin-300.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F; }
+@font-face { font-family: 'Heebo'; font-style: normal; font-weight: 400; font-display: swap;
+  src: url('../fonts/heebo-hebrew-400.woff2') format('woff2'); unicode-range: U+0590-05FF, U+200C-200F, U+20AA, U+25CC, U+FB1D-FB4F; }
+@font-face { font-family: 'Heebo'; font-style: normal; font-weight: 400; font-display: swap;
+  src: url('../fonts/heebo-latin-400.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F; }
+@font-face { font-family: 'Heebo'; font-style: normal; font-weight: 600; font-display: swap;
+  src: url('../fonts/heebo-hebrew-600.woff2') format('woff2'); unicode-range: U+0590-05FF, U+200C-200F, U+20AA, U+25CC, U+FB1D-FB4F; }
+@font-face { font-family: 'Heebo'; font-style: normal; font-weight: 600; font-display: swap;
+  src: url('../fonts/heebo-latin-600.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F; }
+@font-face { font-family: 'Heebo'; font-style: normal; font-weight: 800; font-display: swap;
+  src: url('../fonts/heebo-hebrew-800.woff2') format('woff2'); unicode-range: U+0590-05FF, U+200C-200F, U+20AA, U+25CC, U+FB1D-FB4F; }
+@font-face { font-family: 'Heebo'; font-style: normal; font-weight: 800; font-display: swap;
+  src: url('../fonts/heebo-latin-800.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F; }

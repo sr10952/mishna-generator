@@ -1,0 +1,32 @@
+{
+  "name": "mishna-poster-generator",
+  "version": "1.0.0",
+  "description": "Generate printable Letter-size daily Mishnah learning posters from open-source Sefaria texts. One mishna per page, Hebrew with nikud, Bartenura commentary, custom templates, native-Hebrew mode.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "npx serve -l 8930 .",
+    "test": "node --test tests/unit/*.test.mjs",
+    "test:e2e": "node tests/e2e/e2e.mjs",
+    "test:all": "npm run test && npm run test:e2e"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sr10952/ai-generated"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@fontsource/david-libre": "^5.3.0",
+    "@fontsource/frank-ruhl-libre": "^5.3.0",
+    "@fontsource/heebo": "^5.3.0",
+    "@fontsource/miriam-libre": "^5.3.0",
+    "@sparticuz/chromium": "^138.0.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.3",
+    "puppeteer-core": "^24.0.0",
+    "serve": "^14.2.0"
+  },
+  "comments": {
+    "vendor": "assets/vendor and assets/fonts are self-hosted copies of the npm packages listed above (see tools/sync-vendor.sh); the site itself has zero build step and zero runtime dependencies beyond those files."
+  }
+}

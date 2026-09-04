@@ -377,11 +377,33 @@ export function toParagraphs(raw) {
  * Parasha display helpers
  * ------------------------------------------------------------------------- */
 
-const NON_PARSHA_KEYS = [
-  'rosh hashana', 'yom kippur', 'sukkot', 'succot', 'pesach', 'passover', 'shavuot',
-  'shabbat', 'shabbos', 'chanukah', 'hanukah', 'purim', 'tisha', 'tu bishvat',
-  'ראש השנה', 'יום כיפור', 'סוכות', 'פסח', 'שבועות', 'שבת', 'חנוכה', 'פורים', 'תשעה באב', 'ט״ו בשבט',
+// Sefaria places a holiday Torah reading in its "Parashat Hashavua" slot on
+// weeks where it replaces the ordinary weekly portion. It should not be shown
+// as the poster's parasha: the Hebrew date (and, when enabled, the dedicated
+// Yom Tov label) already supplies clearer context.
+const HOLIDAY_PARSHA_KEYS = [
+  'rosh hashana', 'rosh hashanah', 'rosh ha-shana', 'rosh ha-shanah', 'yom kippur',
+  'sukkot', 'sukkos', 'succot', 'succos', 'chol hamoed', 'chol ha-moed',
+  'pesach', 'passover', 'shavuot', 'shavuos', 'shmini atzeret', 'shmini atzeres',
+  'simchat torah', 'simchas torah',
+  'ראש השנה', 'יום כיפור', 'יום הכיפורים', 'סוכות', 'חול המועד', 'פסח',
+  'שבועות', 'שמיני עצרת', 'שמחת תורה',
 ];
+
+const NON_PARSHA_KEYS = [
+  ...HOLIDAY_PARSHA_KEYS,
+  'shabbat', 'shabbos', 'chanukah', 'hanukah', 'purim', 'tisha', 'tu bishvat',
+  'שבת', 'חנוכה', 'פורים', 'תשעה באב', 'ט״ו בשבט',
+];
+
+/**
+ * True when a calendar "Parashat Hashavua" value is actually a Yom Tov / Chol
+ * HaMoed Torah reading, not the weekly parasha.
+ */
+export function isHolidayParsha(displayValue) {
+  const v = String(displayValue || '').toLowerCase();
+  return !!v && HOLIDAY_PARSHA_KEYS.some((key) => v.includes(key));
+}
 
 /** Should "פרשת / Parshat " be prefixed to this calendars displayValue? */
 export function isParshaName(displayValue) {

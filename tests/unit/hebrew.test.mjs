@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  gematria, stripNikud, sanitizeText, isParshaName, containsLatinLetters,
+  gematria, stripNikud, sanitizeText, isParshaName, isHolidayParsha, containsLatinLetters,
   formatHebrewDate, hebrewDate, isYomTov, saturdayOf, isoDate, parseISODate, formatWeekday,
   YIDDISH_WEEKDAYS, formatYomTovName, getYomTovInfo,
 } from '../../assets/js/hebrew.js';
@@ -50,6 +50,16 @@ test('isParshaName heuristic', () => {
   assert.equal(isParshaName('ראש השנה א'), false);
   assert.equal(isParshaName('Shabbat Shuva'), false);
   assert.equal(isParshaName(''), false);
+});
+
+test('holiday readings in the calendar parasha slot are detectable', () => {
+  assert.equal(isHolidayParsha('Rosh Hashana I'), true);
+  assert.equal(isHolidayParsha('Rosh HaShanah I'), true);
+  assert.equal(isHolidayParsha('Sukkot Day 1'), true);
+  assert.equal(isHolidayParsha('סוכות חג ראשון'), true);
+  assert.equal(isHolidayParsha('חול המועד פסח'), true);
+  assert.equal(isHolidayParsha('Nitzavim-Vayeilech'), false);
+  assert.equal(isHolidayParsha('Shabbat Shuva'), false);
 });
 
 test('containsLatinLetters', () => {

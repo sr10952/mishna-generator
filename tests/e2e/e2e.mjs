@@ -597,6 +597,26 @@ try {
     assert.equal(saved.yomTovDisplay, 'auto');
   });
 
+  await scenario('holiday Torah readings are omitted from the poster parasha line', async () => {
+    await evalJS(page, () => {
+      const holiday = document.getElementById('showYomTovName');
+      holiday.checked = false;
+      holiday.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    // The poster is for Sunday, 9 Tishri, while its cached Saturday calendar
+    // entry is Sukkot. That reading is helpful in the schedule table but
+    // should not be presented as a parasha on the standalone handout.
+    await setStartDate(page, '2026-09-20');
+    await clickBuild(page);
+    const output = await evalJS(page, () => ({
+      infoBits: [...document.querySelectorAll('#renderStage .pg-info-bit')].map((e) => e.textContent),
+      scheduleRow: document.querySelector('#scheduleTable tbody tr').textContent,
+    }));
+    assert.match(output.scheduleRow, /Sukkot|סוכות/, 'fixture confirms the weekly calendar returned a Sukkot reading');
+    assert.ok(output.infoBits.some((bit) => bit.includes('ט׳ בתשרי')), 'Hebrew date remains visible');
+    assert.equal(output.infoBits.some((bit) => /סוכות|Sukkot/.test(bit)), false, 'holiday reading is not rendered as a parasha');
+  });
+
   await scenario('responsive: 375px phone - no overflow, mobile tabs work', async () => {
     await page.setViewport({ width: 375, height: 812, isMobile: true, hasTouch: true });
     await page.goto(BASE, { waitUntil: 'networkidle0' });

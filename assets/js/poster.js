@@ -11,7 +11,7 @@
 import { MISHNAH, findMasechet, COMMENTARIES } from './mishnah-index.js';
 import {
   gematria, formatHebrewDate, formatGregorianDate, formatWeekday, parseISODate,
-  formatRefTitle, sanitizeText, stripNikud, isParshaName, masechetHeName,
+  formatRefTitle, sanitizeText, stripNikud, isParshaName, isHolidayParsha, masechetHeName,
   getYomTovInfo, formatYomTovInfo,
 } from './hebrew.js';
 import { STRINGS } from './i18n.js';
@@ -270,8 +270,13 @@ export function buildPosterPage({ entry, textData, commentaries, calendar, index
   }
   if (showParsha && calendar && calendar.parsha) {
     const raw = he ? calendar.parsha.he : calendar.parsha.en;
-    const prefix = he ? 'פרשת ' : 'Parshat ';
-    infoBits.push(`${isParshaName(raw) ? prefix : ''}${raw}`);
+    // A holiday reading may be returned in the weekly-parasha slot (for
+    // example "סוכות חג ראשון"). Suppress it rather than duplicating or
+    // misleading the date information shown immediately beside it.
+    if (raw && !isHolidayParsha(raw)) {
+      const prefix = he ? 'פרשת ' : 'Parshat ';
+      infoBits.push(`${isParshaName(raw) ? prefix : ''}${raw}`);
+    }
   }
   if (design.showDayCount !== false) {
     infoBits.push(he ? `יום ${gematria(index)} מתוך ${gematria(total)}` : `Day ${index} of ${total}`);

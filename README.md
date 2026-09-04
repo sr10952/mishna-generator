@@ -28,7 +28,7 @@ texts are fetched at runtime from the public Sefaria API.
 - Commentaries: Bartenura, Rambam, Tosafot Yom Tov (each toggleable)
 - Per-page dynamic header: weekday, Hebrew date, weekly parasha, "day N of M" counter
 - Weekday display can match the poster, use the traditional Yiddish names (זונטאג through שב"ק), be hidden, or use seven custom labels
-- Optional date-aware Yom Tov / holiday line, including Chol HaMoed; choose Hebrew, Yiddish, or English wording and it respects the Israel / Diaspora setting
+- Optional date-aware Yom Tov / holiday line, including Chol HaMoed; choose Hebrew, Yiddish, or English wording and it respects the Israel / Diaspora setting. Holiday Torah readings are omitted from the separate parasha field to avoid duplicate date context
 - Optional, customizable "Daily Mishnah" badge; institution letterhead, dedication line, and custom footer note
 - Posters are independent handouts, so their footers omit page N of M markers
 - Version pickers for the Hebrew and English text source
@@ -70,8 +70,8 @@ then open <http://localhost:8930>. (ES modules require http:// — `file://` won
 
 ```bash
 npm install        # dev deps only (puppeteer-core + @sparticuz/chromium for headless tests)
-npm test           # 29 unit tests
-npm run test:e2e   # 25 end-to-end scenarios in real headless Chromium (offline, fixture-driven)
+npm test           # 30 unit tests
+npm run test:e2e   # 26 end-to-end scenarios in real headless Chromium (offline, fixture-driven)
 npm run test:all   # everything
 ```
 

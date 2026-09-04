@@ -13,7 +13,7 @@
  *   - PDF download (raster) + print-to-PDF (vector) page counts and sizes
  *   - PNG export
  *   - html2canvas raster sanity (correct size, real ink on canvas)
- *   - long-commentary auto-fit, independent commentary fonts, Letter/Legal output
+ *   - long-commentary auto-fit, independent commentary fonts, preset/custom page output
  *   - responsive layout at 375 / 768 / 1280 px
  *   - graceful degradation when a text is unavailable
  *
@@ -194,7 +194,7 @@ try {
     assert.match(info.text, /רַבָּן שִׁמְעוֹן בֶּן גַּמְלִיאֵל/);
     assert.ok(NIKUD.test(info.text), 'mishna text should contain nikud');
     assert.match(info.info, /יום חמישי/);
-    assert.match(info.info, /כ״א באלול תשפ״ו/);
+    assert.match(info.info, /כ״א אלול תשפ״ו/);
     assert.match(info.info, /פרשת נצבים/);
     assert.match(info.info, /יום א׳ מתוך ד׳/);
     assert.equal(info.badge, 'משנה יומית');
@@ -505,7 +505,7 @@ try {
     assert.deepEqual(dimensions.preview, [816, 1344]);
     assert.equal(dimensions.previewAspect, '816 / 1344');
     assert.deepEqual(dimensions.png, [816, 1344]);
-    assert.match(dimensions.printRule, /size:\s*legal portrait/);
+    assert.match(dimensions.printRule, /size:\s*8\.5in 14in/);
 
     await evalJS(page, () => {
       const quality = document.getElementById('qualitySel');
@@ -527,6 +527,128 @@ try {
     const printPdf = await page.pdf({ format: 'letter', printBackground: true, preferCSSPageSize: true });
     assert.equal(countPdfPages(printPdf), 1, 'Legal print PDF page count');
     assert.match(pdfText(printPdf), /\/MediaBox\s*\[0 0 612 1008\]/, 'Legal print PDF MediaBox');
+  });
+
+  await scenario('Tabloid and custom page sizes drive preview, PNG, PDF, and print', async () => {
+    await evalJS(page, () => {
+      const size = document.getElementById('pageSizeSel');
+      size.value = 'tabloid';
+      size.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await clickBuild(page);
+    const tabloid = await evalJS(page, async () => {
+      const poster = document.querySelector('#renderStage .poster-page');
+      const preview = document.querySelector('#previewCanvas .poster-page');
+      const { renderPagePng } = await import('/assets/js/pdf.js');
+      const png = await renderPagePng(poster, 1);
+      const image = new Image();
+      await new Promise((resolve, reject) => {
+        image.onload = resolve;
+        image.onerror = reject;
+        image.src = png;
+      });
+      return {
+        pageSize: poster.dataset.pageSize,
+        poster: [poster.offsetWidth, poster.offsetHeight],
+        preview: [preview.offsetWidth, preview.offsetHeight],
+        png: [image.naturalWidth, image.naturalHeight],
+        printRule: document.getElementById('printPageSizeStyle').textContent,
+      };
+    });
+    assert.equal(tabloid.pageSize, 'tabloid');
+    assert.deepEqual(tabloid.poster, [1056, 1632]);
+    assert.deepEqual(tabloid.preview, [1056, 1632]);
+    assert.deepEqual(tabloid.png, [1056, 1632]);
+    assert.match(tabloid.printRule, /size:\s*11in 17in/);
+
+    await evalJS(page, () => {
+      const quality = document.getElementById('qualitySel');
+      quality.value = 'draft';
+      quality.dispatchEvent(new Event('change', { bubbles: true }));
+      document.getElementById('downloadPdfBtn').click();
+    });
+    let filename = await waitForDownload();
+    let rasterPdf = readFileSync(path.join(DOWNLOADS, filename));
+    assert.equal(countPdfPages(rasterPdf), 1, 'Tabloid raster PDF page count');
+    assert.match(pdfText(rasterPdf), /\/MediaBox\s*\[0 0 792\.? 1224\.?\]/, 'Tabloid raster PDF MediaBox');
+    rmSync(path.join(DOWNLOADS, filename));
+
+    await evalJS(page, () => {
+      const stage = document.getElementById('printStage');
+      stage.innerHTML = '';
+      document.querySelectorAll('#renderStage .poster-page').forEach((p) => stage.appendChild(p.cloneNode(true)));
+    });
+    let printPdf = await page.pdf({ format: 'letter', printBackground: true, preferCSSPageSize: true });
+    assert.equal(countPdfPages(printPdf), 1, 'Tabloid print PDF page count');
+    assert.match(pdfText(printPdf), /\/MediaBox\s*\[0 0 792 1224\]/, 'Tabloid print PDF MediaBox');
+
+    await evalJS(page, () => {
+      const size = document.getElementById('pageSizeSel');
+      size.value = 'custom';
+      size.dispatchEvent(new Event('change', { bubbles: true }));
+      const width = document.getElementById('customPageWidth');
+      const height = document.getElementById('customPageHeight');
+      width.value = '13';
+      height.value = '10';
+      width.dispatchEvent(new Event('change', { bubbles: true }));
+      height.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    assert.equal(await $eval(page, '#customPageSizeFields', (e) => e.hidden), false);
+    await clickBuild(page);
+    const custom = await evalJS(page, async () => {
+      const poster = document.querySelector('#renderStage .poster-page');
+      const preview = document.querySelector('#previewCanvas .poster-page');
+      const canvas = document.getElementById('previewCanvas');
+      const { renderPagePng } = await import('/assets/js/pdf.js');
+      const png = await renderPagePng(poster, 1);
+      const image = new Image();
+      await new Promise((resolve, reject) => {
+        image.onload = resolve;
+        image.onerror = reject;
+        image.src = png;
+      });
+      return {
+        pageSize: poster.dataset.pageSize,
+        poster: [poster.offsetWidth, poster.offsetHeight],
+        preview: [preview.offsetWidth, preview.offsetHeight],
+        previewAspect: canvas.style.aspectRatio,
+        png: [image.naturalWidth, image.naturalHeight],
+        printRule: document.getElementById('printPageSizeStyle').textContent,
+      };
+    });
+    assert.equal(custom.pageSize, 'custom');
+    assert.deepEqual(custom.poster, [1248, 960]);
+    assert.deepEqual(custom.preview, [1248, 960]);
+    assert.equal(custom.previewAspect, '1248 / 960');
+    assert.deepEqual(custom.png, [1248, 960]);
+    assert.match(custom.printRule, /size:\s*13in 10in/);
+
+    await evalJS(page, () => {
+      const quality = document.getElementById('qualitySel');
+      quality.value = 'draft';
+      quality.dispatchEvent(new Event('change', { bubbles: true }));
+      document.getElementById('downloadPdfBtn').click();
+    });
+    filename = await waitForDownload();
+    rasterPdf = readFileSync(path.join(DOWNLOADS, filename));
+    assert.equal(countPdfPages(rasterPdf), 1, 'custom raster PDF page count');
+    assert.match(pdfText(rasterPdf), /\/MediaBox\s*\[0 0 936\.? 720\.?\]/, 'custom raster PDF MediaBox');
+    rmSync(path.join(DOWNLOADS, filename));
+
+    await evalJS(page, () => {
+      const stage = document.getElementById('printStage');
+      stage.innerHTML = '';
+      document.querySelectorAll('#renderStage .poster-page').forEach((p) => stage.appendChild(p.cloneNode(true)));
+    });
+    printPdf = await page.pdf({ format: 'letter', printBackground: true, preferCSSPageSize: true });
+    assert.equal(countPdfPages(printPdf), 1, 'custom print PDF page count');
+    assert.match(pdfText(printPdf), /\/MediaBox\s*\[0 0 936 720\]/, 'custom print PDF MediaBox');
+
+    await sleep(300);
+    const saved = await evalJS(page, () => JSON.parse(localStorage.getItem('mishna-poster-settings-v1')).design);
+    assert.equal(saved.pageSize, 'custom');
+    assert.equal(saved.customPageWidth, 13);
+    assert.equal(saved.customPageHeight, 10);
   });
 
   await scenario('Yiddish weekdays and optional date-aware Yom Tov labels are customizable', async () => {
@@ -613,7 +735,7 @@ try {
       scheduleRow: document.querySelector('#scheduleTable tbody tr').textContent,
     }));
     assert.match(output.scheduleRow, /Sukkot|סוכות/, 'fixture confirms the weekly calendar returned a Sukkot reading');
-    assert.ok(output.infoBits.some((bit) => bit.includes('ט׳ בתשרי')), 'Hebrew date remains visible');
+    assert.ok(output.infoBits.some((bit) => bit.includes('ט׳ תשרי')), 'Hebrew date remains visible');
     assert.equal(output.infoBits.some((bit) => /סוכות|Sukkot/.test(bit)), false, 'holiday reading is not rendered as a parasha');
   });
 

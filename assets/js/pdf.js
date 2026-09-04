@@ -2,7 +2,7 @@
  * pdf.js - Raster-to-PDF pipeline.
  *
  * The poster DOM is painted by the browser engine itself (html2canvas) at a
- * high device scale, then embedded into a Letter- or Legal-size PDF via jsPDF.
+ * high device scale, then embedded into a preset or custom-size PDF via jsPDF.
  * This is what gives pixel-perfect Hebrew with nikud, RTL layout and custom
  * fonts - things that are essentially impossible to do well with text-drawing
  * PDF libraries in the browser.
@@ -37,7 +37,7 @@ async function renderPage(pageEl, scale, pageSize = getPageSizeForElement(pageEl
 /**
  * Generate the PDF from an array of built poster elements.
  * @param {HTMLElement[]} pages attached, auto-fitted poster elements
- * @param {{quality:string, pageSize:string, onProgress:Function}} opts
+ * @param {{quality:string, pageSize:string|object, onProgress:Function}} opts
  * @returns {Promise<jsPDF>}
  */
 export async function generatePdf(pages, { quality = 'high', pageSize, onProgress, filename = 'mishna-posters.pdf' } = {}) {
@@ -53,7 +53,7 @@ export async function generatePdf(pages, { quality = 'high', pageSize, onProgres
   const doc = new window.jspdf.jsPDF({
     unit: 'pt',
     format: firstSize.pdfFormat,
-    orientation: 'portrait',
+    orientation: firstSize.orientation,
     compress: true,
   });
 
@@ -64,7 +64,7 @@ export async function generatePdf(pages, { quality = 'high', pageSize, onProgres
     const canvas = await renderPage(pages[i], q.scale, currentSize);
     const usePng = !!q.png;
     const dataUrl = usePng ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.93);
-    if (i > 0) doc.addPage(currentSize.pdfFormat, 'portrait');
+    if (i > 0) doc.addPage(currentSize.pdfFormat, currentSize.orientation);
     doc.addImage(
       dataUrl,
       usePng ? 'PNG' : 'JPEG',

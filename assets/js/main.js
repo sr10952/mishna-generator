@@ -43,6 +43,8 @@ const DEFAULTS = {
     font: 'frank',
     commentaryFont: 'frank',
     pageSize: 'letter',
+    customPageWidth: 8.5,
+    customPageHeight: 11,
     accent: '#8a6d3b',
     institution: '',
     dedication: '',
@@ -90,7 +92,12 @@ function loadSettings() {
     // localStorage values.
     if (!s.design || !s.design.commentaryFont || !FONTS[merged.design.commentaryFont]) merged.design.commentaryFont = FONTS[merged.design.font] ? merged.design.font : 'frank';
     if (!FONTS[merged.design.font]) merged.design.font = 'frank';
-    merged.design.pageSize = getPageSize(merged.design.pageSize).id;
+    const normalizedPageSize = getPageSize(merged.design);
+    merged.design.pageSize = normalizedPageSize.id;
+    if (normalizedPageSize.id === 'custom') {
+      merged.design.customPageWidth = normalizedPageSize.widthIn;
+      merged.design.customPageHeight = normalizedPageSize.heightIn;
+    }
     if (!WEEKDAY_DISPLAY_STYLES.has(merged.design.weekdayDisplay)) merged.design.weekdayDisplay = 'auto';
     if (!YOM_TOV_DISPLAY_STYLES.has(merged.design.yomTovDisplay)) merged.design.yomTovDisplay = 'auto';
     if (typeof merged.design.customWeekdayNames !== 'string') merged.design.customWeekdayNames = '';
@@ -132,8 +139,12 @@ function el(tag, cls, html) {
 
 /** Keep CSS print media, render stage, and saved state on the same format. */
 function syncPageSize() {
-  const pageSize = getPageSize(settings.design.pageSize);
+  const pageSize = getPageSize(settings.design);
   settings.design.pageSize = pageSize.id;
+  if (pageSize.id === 'custom') {
+    settings.design.customPageWidth = pageSize.widthIn;
+    settings.design.customPageHeight = pageSize.heightIn;
+  }
   document.documentElement.dataset.posterPageSize = pageSize.id;
 
   const renderStage = $('renderStage');
@@ -143,20 +154,34 @@ function syncPageSize() {
 
   // @page cannot depend on a normal element selector or custom property. A
   // tiny generated rule is the reliable way to make the browser's print
-  // dialog (and headless print-to-PDF) honor the selected format.
+  // dialog (and headless print-to-PDF) honor the selected format. Every
+  // format uses explicit inches so even browsers lacking a named Tabloid
+  // page size preserve the chosen portrait or landscape dimensions.
   let style = document.getElementById('printPageSizeStyle');
   if (!style) {
     style = document.createElement('style');
     style.id = 'printPageSizeStyle';
     document.head.appendChild(style);
   }
-  style.textContent = `@media print { @page { size: ${pageSize.printFormat} portrait; margin: 0; } }`;
+  style.textContent = `@media print { @page { size: ${pageSize.printFormat}; margin: 0; } }`;
   return pageSize;
+}
+
+function formatPageInches(value) {
+  return String(Math.round(Number(value) * 100) / 100);
 }
 
 function pageSizeLabel(page) {
   const size = getPageSizeForElement(page);
-  return t(size.id === 'legal' ? 'pageSizeLegal' : 'pageSizeLetter');
+  if (size.id === 'legal') return t('pageSizeLegal');
+  if (size.id === 'tabloid') return t('pageSizeTabloid');
+  if (size.id === 'custom') {
+    return t('pageSizeCustomPreview', {
+      width: formatPageInches(size.widthIn),
+      height: formatPageInches(size.heightIn),
+    });
+  }
+  return t('pageSizeLetter');
 }
 
 /* ===========================================================================
@@ -679,7 +704,7 @@ async function downloadPdf() {
     }
     const doc = await generatePdf(stagePages, {
       quality: settings.design.quality,
-      pageSize: settings.design.pageSize,
+      pageSize: settings.design,
       onProgress: (done, total) => setProgress(done, total, t('downloading')),
     });
     savePdf(doc, suggestedFilename(schedule, settings));
@@ -934,11 +959,28 @@ function wire() {
 
   $('fontSel').addEventListener('change', (e) => { settings.design.font = e.target.value; onDesignSettingChange(); });
   $('commentaryFontSel').addEventListener('change', (e) => { settings.design.commentaryFont = e.target.value; onDesignSettingChange(); });
-  $('pageSizeSel').value = getPageSize(settings.design.pageSize).id;
+  $('pageSizeSel').value = getPageSize(settings.design).id;
   $('pageSizeSel').addEventListener('change', (e) => {
     settings.design.pageSize = getPageSize(e.target.value).id;
+    syncCustomPageSizeControls();
     onDesignSettingChange();
   });
+  const updateCustomPageSize = () => {
+    settings.design.customPageWidth = $('customPageWidth').value;
+    settings.design.customPageHeight = $('customPageHeight').value;
+    const normalized = getPageSize({
+      pageSize: 'custom',
+      customPageWidth: settings.design.customPageWidth,
+      customPageHeight: settings.design.customPageHeight,
+    });
+    settings.design.customPageWidth = normalized.widthIn;
+    settings.design.customPageHeight = normalized.heightIn;
+    syncCustomPageSizeControls();
+    onDesignSettingChange();
+  };
+  $('customPageWidth').addEventListener('change', updateCustomPageSize);
+  $('customPageHeight').addEventListener('change', updateCustomPageSize);
+  syncCustomPageSizeControls();
   $('accentColor').value = settings.design.accent;
   $('accentColor').addEventListener('input', (e) => {
     settings.design.accent = e.target.value;
@@ -1001,6 +1043,23 @@ function syncTextLangVisibility() {
 function syncDailyMishnaBadgeTextVisibility() {
   const field = $('dailyMishnaBadgeTextField');
   if (field) field.hidden = settings.design.showDailyMishnaBadge === false;
+}
+
+/** Normalize, restore, and conditionally reveal manual page dimensions. */
+function syncCustomPageSizeControls() {
+  const custom = getPageSize({
+    pageSize: 'custom',
+    customPageWidth: settings.design.customPageWidth,
+    customPageHeight: settings.design.customPageHeight,
+  });
+  settings.design.customPageWidth = custom.widthIn;
+  settings.design.customPageHeight = custom.heightIn;
+  const width = $('customPageWidth');
+  const height = $('customPageHeight');
+  if (width) width.value = formatPageInches(custom.widthIn);
+  if (height) height.value = formatPageInches(custom.heightIn);
+  const fields = $('customPageSizeFields');
+  if (fields) fields.hidden = settings.design.pageSize !== 'custom';
 }
 
 /** Keep optional date-format controls out of the way until they are relevant. */

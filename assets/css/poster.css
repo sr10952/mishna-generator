@@ -1,6 +1,6 @@
 /* ==========================================================================
-   poster.css - styles for Letter (816x1056 px) and Legal (816x1344 px)
-   poster pages at 96px/in. This stylesheet is deliberately free of media
+   poster.css - styles for preset and custom poster pages at 96px/in.
+   This stylesheet is deliberately free of media
    queries, box-shadows and other features html2canvas renders imperfectly,
    so the preview, the PDF and the print output all look identical.
    ========================================================================== */
@@ -355,7 +355,7 @@
 
 /* print: every poster becomes exactly one selected page. main.js writes the
    matching @page rule immediately before print so browser print dialogs and
-   headless print-to-PDF both inherit Letter or Legal. */
+   headless print-to-PDF both inherit the selected preset or custom size. */
 @media print {
   @page { margin: 0; }
   body { background: #fff; }
@@ -366,17 +366,11 @@
   }
   #printStage .poster-page {
     position: static !important;
+    width: var(--pg-page-width) !important;
+    height: var(--pg-page-height) !important;
     transform: none !important;
     page-break-after: always;
     break-after: page;
-  }
-  #printStage .poster-page[data-page-size='letter'] {
-    width: 8.5in !important;
-    height: 11in !important;
-  }
-  #printStage .poster-page[data-page-size='legal'] {
-    width: 8.5in !important;
-    height: 14in !important;
   }
   #printStage .poster-page:last-child { page-break-after: auto; break-after: auto; }
 }

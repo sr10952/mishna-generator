@@ -26,7 +26,7 @@ test('stripNikud removes vowels but keeps maqaf and gershayim', () => {
   assert.equal(stripNikud('שָׁלוֹם'), 'שלום');
   assert.equal(stripNikud('בְּהֵמָה'), 'בהמה');
   assert.equal(stripNikud('עַל־יְדֵי'), 'על־ידי'); // maqaf U+05BE kept
-  assert.equal(stripNikud('כ״א באלול'), 'כ״א באלול'); // gershayim kept
+  assert.equal(stripNikud('כ״א אלול'), 'כ״א אלול'); // gershayim kept
   assert.equal(stripNikud('שֶׁבֶת שַׁבָּתוֹן'), 'שבת שבתון');
 });
 
@@ -85,8 +85,11 @@ test('hebrewDate via Intl (known anchors)', () => {
 
 test('formatHebrewDate in both languages', () => {
   const d = parseISODate('2026-09-03');
-  assert.equal(formatHebrewDate(d, 'he'), 'כ״א באלול תשפ״ו');
+  assert.equal(formatHebrewDate(d, 'he'), 'כ״א אלול תשפ״ו');
   assert.equal(formatHebrewDate(d, 'en'), '21 Elul 5786');
+  // Poster dates intentionally show the month name itself, without the
+  // Hebrew preposition ב־ (for example, "תשרי", not "בתשרי").
+  assert.equal(formatHebrewDate(parseISODate('2026-09-12'), 'he'), 'א׳ תשרי תשפ״ז');
 });
 
 test('weekday names', () => {

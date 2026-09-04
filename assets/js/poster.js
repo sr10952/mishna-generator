@@ -1,5 +1,5 @@
 /**
- * poster.js - Builds a US Letter or Legal poster page for a single mishna,
+ * poster.js - Builds a selected physical-size poster page for a single mishna,
  * with built-in and randomized templates, uploaded letterhead/logo &
  * background images, and automatic text fitting so that the whole mishna
  * (plus selected commentaries) always fits on ONE page.
@@ -18,43 +18,107 @@ import { STRINGS } from './i18n.js';
 
 /**
  * Physical poster formats. The raster dimensions are based on CSS's 96 px/in
- * so a 2x/3x/4x html2canvas render remains 192/288/384 DPI for either format.
- * Keep the Letter constants below for callers that imported them before Legal
- * support was added.
+ * so a 2x/3x/4x html2canvas render remains 192/288/384 DPI for every format.
+ * Custom values deliberately use familiar single-sheet printer limits: five
+ * through seventeen inches on either side, including Tabloid's 11 × 17 format.
  */
-export const PAGE_SIZES = Object.freeze({
-  letter: Object.freeze({
-    id: 'letter',
-    width: 816, // 8.5in * 96
-    height: 1056, // 11in * 96
-    widthIn: 8.5,
-    heightIn: 11,
-    widthPt: 612,
-    heightPt: 792,
-    pdfFormat: 'letter',
-    printFormat: 'letter',
-  }),
-  legal: Object.freeze({
-    id: 'legal',
-    width: 816, // 8.5in * 96
-    height: 1344, // 14in * 96
-    widthIn: 8.5,
-    heightIn: 14,
-    widthPt: 612,
-    heightPt: 1008,
-    pdfFormat: 'legal',
-    printFormat: 'legal',
-  }),
-});
+const CSS_PIXELS_PER_INCH = 96;
+const POINTS_PER_INCH = 72;
+export const CUSTOM_PAGE_MIN_IN = 5;
+export const CUSTOM_PAGE_MAX_IN = 17;
+export const CUSTOM_PAGE_DEFAULT_WIDTH_IN = 8.5;
+export const CUSTOM_PAGE_DEFAULT_HEIGHT_IN = 11;
 
-/** Return a supported size, safely falling back for old/invalid saved data. */
-export function getPageSize(size) {
-  return PAGE_SIZES[size] || PAGE_SIZES.letter;
+function roundedInches(value) {
+  return Math.round(value * 100) / 100;
 }
 
-/** Resolve the format carried by a rendered poster element. */
+function printableInches(value) {
+  return String(roundedInches(value));
+}
+
+/** Clamp a manual dimension to the supported range, preserving 0.01in input. */
+export function clampCustomPageDimension(value, fallback) {
+  const parsed = Number(value);
+  const safeFallback = Number.isFinite(Number(fallback)) && Number(fallback) > 0
+    ? Number(fallback)
+    : CUSTOM_PAGE_DEFAULT_WIDTH_IN;
+  const usable = Number.isFinite(parsed) && parsed > 0 ? parsed : safeFallback;
+  return roundedInches(Math.max(CUSTOM_PAGE_MIN_IN, Math.min(CUSTOM_PAGE_MAX_IN, usable)));
+}
+
+function presetPageSize(id, widthIn, heightIn, pdfFormat) {
+  return Object.freeze({
+    id,
+    width: widthIn * CSS_PIXELS_PER_INCH,
+    height: heightIn * CSS_PIXELS_PER_INCH,
+    widthIn,
+    heightIn,
+    widthPt: widthIn * POINTS_PER_INCH,
+    heightPt: heightIn * POINTS_PER_INCH,
+    pdfFormat,
+    // Explicit inches work in browser print engines that do not support all
+    // North American named CSS page sizes (notably Tabloid).
+    printFormat: `${printableInches(widthIn)}in ${printableInches(heightIn)}in`,
+    orientation: 'portrait',
+  });
+}
+
+/** Create a custom CSS/print/PDF format from user-selected inches. */
+function customPageSize(width, height) {
+  const widthIn = clampCustomPageDimension(width, CUSTOM_PAGE_DEFAULT_WIDTH_IN);
+  const heightIn = clampCustomPageDimension(height, CUSTOM_PAGE_DEFAULT_HEIGHT_IN);
+  return {
+    id: 'custom',
+    width: widthIn * CSS_PIXELS_PER_INCH,
+    height: heightIn * CSS_PIXELS_PER_INCH,
+    widthIn,
+    heightIn,
+    widthPt: widthIn * POINTS_PER_INCH,
+    heightPt: heightIn * POINTS_PER_INCH,
+    // jsPDF accepts [width, height] in the selected unit for arbitrary pages.
+    pdfFormat: [widthIn * POINTS_PER_INCH, heightIn * POINTS_PER_INCH],
+    // CSS @page accepts explicit dimensions and preserves a landscape choice.
+    printFormat: `${printableInches(widthIn)}in ${printableInches(heightIn)}in`,
+    orientation: widthIn > heightIn ? 'landscape' : 'portrait',
+  };
+}
+
+export const PAGE_SIZES = Object.freeze({
+  letter: presetPageSize('letter', 8.5, 11, 'letter'),
+  legal: presetPageSize('legal', 8.5, 14, 'legal'),
+  tabloid: presetPageSize('tabloid', 11, 17, 'tabloid'),
+});
+
+/**
+ * Return a supported preset or a normalized manual format. Pass either a
+ * size id or the full design object containing pageSize/customPageWidth/
+ * customPageHeight. Invalid preset ids become Letter; custom dimensions are normalized.
+ */
+export function getPageSize(sizeOrDesign, customDimensions = {}) {
+  const design = sizeOrDesign && typeof sizeOrDesign === 'object'
+    ? sizeOrDesign
+    : { pageSize: sizeOrDesign, ...(customDimensions || {}) };
+  if (design.pageSize === 'custom') {
+    return customPageSize(
+      design.customPageWidth ?? design.width,
+      design.customPageHeight ?? design.height,
+    );
+  }
+  return PAGE_SIZES[design.pageSize] || PAGE_SIZES.letter;
+}
+
+/** Resolve the exact format carried by a rendered poster element. */
 export function getPageSizeForElement(page) {
-  return getPageSize(page && page.dataset ? page.dataset.pageSize : null);
+  const data = page && page.dataset ? page.dataset : {};
+  if (data.pageSize === 'custom') {
+    return getPageSize({
+      pageSize: 'custom',
+      customPageWidth: data.pageWidthIn ?? (Number(data.pageWidth) / CSS_PIXELS_PER_INCH),
+      customPageHeight: data.pageHeightIn ?? (Number(data.pageHeight) / CSS_PIXELS_PER_INCH),
+    });
+  }
+  return getPageSize(data.pageSize);
 }
 
 // Legacy/default Letter exports. New rendering code should use getPageSize().
@@ -190,7 +254,7 @@ function yomTovDisplayLanguage(design, he) {
 export function buildPosterPage({ entry, textData, commentaries, calendar, index, total, settings, lang }) {
   const he = lang === 'he';
   const design = settings.design;
-  const pageSize = getPageSize(design.pageSize);
+  const pageSize = getPageSize(design);
   const masechet = findMasechet(entry.book);
   const template = design.templateDef || TEMPLATES[0];
   const date = parseISODate(entry.date);
@@ -212,6 +276,8 @@ export function buildPosterPage({ entry, textData, commentaries, calendar, index
   page.dataset.pageSize = pageSize.id;
   page.dataset.pageWidth = String(pageSize.width);
   page.dataset.pageHeight = String(pageSize.height);
+  page.dataset.pageWidthIn = String(pageSize.widthIn);
+  page.dataset.pageHeightIn = String(pageSize.heightIn);
 
   // --- background layers -----------------------------------------------
   if (design.bgDataUrl) {

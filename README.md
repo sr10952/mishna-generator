@@ -3,9 +3,9 @@
 A free, fully client-side web app that generates **printable daily-Mishnah study posters**
 from open-source [Sefaria](https://sefaria.org) texts. Pick where you're starting
 (e.g. *Bekhorot 3:2*), how many mishnayot (up to 30), and which days of the week to
-learn — the app builds the schedule, lays out **one mishna per US Letter or Legal page**
-with the Hebrew date, weekday, weekly parasha and day counter, and exports a
-ready-to-print PDF.
+learn — the app builds the schedule, lays out **one mishna per Letter, Legal, Tabloid,
+or custom-size page** with the Hebrew date, weekday, weekly parasha and day counter,
+and exports a ready-to-print PDF.
 
 Everything runs in the browser. There is **no build step, no backend, and no tracking** —
 texts are fetched at runtime from the public Sefaria API.
@@ -26,7 +26,7 @@ texts are fetched at runtime from the public Sefaria API.
 **Poster content**
 - Mishna text from Sefaria — with or without nikud, Hebrew or English (translation)
 - Commentaries: Bartenura, Rambam, Tosafot Yom Tov (each toggleable)
-- Per-page dynamic header: weekday, Hebrew date, weekly parasha, "day N of M" counter
+- Per-page dynamic header: weekday, Hebrew date (month name without a leading ב־), weekly parasha, "day N of M" counter
 - Weekday display can match the poster, use the traditional Yiddish names (זונטאג through שב"ק), be hidden, or use seven custom labels
 - Optional date-aware Yom Tov / holiday line, including Chol HaMoed; choose Hebrew, Yiddish, or English wording and it respects the Israel / Diaspora setting. Holiday Torah readings are omitted from the separate parasha field to avoid duplicate date context
 - Optional, customizable "Daily Mishnah" badge; institution letterhead, dedication line, and custom footer note
@@ -38,12 +38,12 @@ texts are fetched at runtime from the public Sefaria API.
   Elegant Ivory, Fresh Garden, Night Learning) + "Surprise me" auto-generated palettes
 - Upload your own **logo** and **background image** for a fully custom letterhead
 - Accent color picker, independent mishna and commentary font choices, overlay darkness control for background images
-- Letter (8.5″ × 11″) or Legal (8.5″ × 14″) page size, consistently applied to preview, PDF, PNG and print
+- Letter (8.5″ × 11″), Legal (8.5″ × 14″), and Tabloid (11″ × 17″) presets, plus a custom width × height size from 5″ to 17″ on each side — consistently applied to preview, PDF, PNG, and print
 
 **Output**
-- **PDF download** — US Letter (8.5″ × 11″) or Legal (8.5″ × 14″), one mishna per page, 192 / 288 / 384 DPI
-- **Vector print** via the browser print dialog (`Ctrl/Cmd-P`) — smallest files, crisp text, selected page size
-- **PNG export** of the current page at the selected page dimensions
+- **PDF download** — the selected Letter, Legal, Tabloid, or custom size; one mishna per page, 192 / 288 / 384 DPI
+- **Vector print** via the browser print dialog (`Ctrl/Cmd-P`) — smallest files, crisp text, and the selected physical page size (including custom landscape dimensions)
+- **PNG export** of the current page at the selected physical page dimensions
 - All settings persist in `localStorage`
 
 **Interface**
@@ -70,16 +70,17 @@ then open <http://localhost:8930>. (ES modules require http:// — `file://` won
 
 ```bash
 npm install        # dev deps only (puppeteer-core + @sparticuz/chromium for headless tests)
-npm test           # 30 unit tests
-npm run test:e2e   # 26 end-to-end scenarios in real headless Chromium (offline, fixture-driven)
+npm test           # 32 unit tests
+npm run test:e2e   # 27 end-to-end scenarios in real headless Chromium (offline, fixture-driven)
 npm run test:all   # everything
 ```
 
 E2E coverage highlights: zero console errors on boot; the Bekhorot 3:2 × 4-days example
 from the brief (schedule, parasha/Hebrew-date headers, day counter); PDF export is a
-valid 4-page Letter-size document with real ink; Legal output keeps its 8.5″ × 14″
-dimensions across preview, raster PDF, PNG and print; long commentary auto-fit stays
-inside the page while remaining smaller than the mishna; the html2canvas raster used for
+valid 4-page Letter-size document with real ink; Legal, Tabloid, and custom-size output
+keep their dimensions across preview, raster PDF, PNG, and browser print (including
+custom 13″ × 10″ landscape regression coverage); long commentary auto-fit stays inside the page
+while remaining smaller than the mishna; the html2canvas raster used for
 PDFs is **pixel-compared against the browser's own rendering** (≥ 95 % match) so
 Hebrew/RTL output can't silently break; native-Hebrew mode contains *no Latin
 characters*; the Daily Mishnah badge can be customized or hidden; Yiddish and custom
@@ -105,7 +106,7 @@ assets/
   fonts/                self-hosted woff2 (Frank Ruhl Libre, David Libre, Heebo, Miriam Libre)
   vendor/               html2canvas 1.4.1, jsPDF 3 (self-hosted, MIT)
 tests/
-  unit/                 27 unit tests (node --test)
+  unit/                 32 unit tests (node --test)
   e2e/                  e2e.mjs + browser.mjs (chromium bootstrap, static server,
                         Sefaria fixture interceptor) — runs fully offline
   fixtures/             recorded Sefaria API responses

@@ -1,7 +1,7 @@
 {
   "name": "mishna-poster-generator",
   "version": "1.0.0",
-  "description": "Generate printable Letter- or Legal-size daily Mishnah learning posters from open-source Sefaria texts. One mishna per page, Hebrew with nikud, Bartenura commentary, custom templates, native-Hebrew mode.",
+  "description": "Generate printable Letter, Legal, Tabloid, or custom-size daily Mishnah learning posters from open-source Sefaria texts. One mishna per page, Hebrew with nikud, Bartenura commentary, custom templates, native-Hebrew mode.",
   "type": "module",
   "private": true,
   "scripts": {

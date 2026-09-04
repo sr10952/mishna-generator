@@ -109,6 +109,8 @@ body {
 
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .grid-3 { display: grid; grid-template-columns: 1.6fr 0.7fr 0.7fr; gap: 12px; }
+.custom-page-size-fields[hidden] { display: none !important; }
+.custom-page-size-fields .hint { margin: -3px 0 12px; }
 .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; margin: 0 0 12px; }
 .field[hidden] { display: none !important; }
 .field-label {

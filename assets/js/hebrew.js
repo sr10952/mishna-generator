@@ -100,7 +100,7 @@ export function hebrewDate(date) {
   return hebrewParts(date);
 }
 
-/** "כ״א באלול תשפ״ו" (Hebrew) or "21 Elul 5786" (English). */
+/** "כ״א אלול תשפ״ו" (Hebrew) or "21 Elul 5786" (English). */
 export function formatHebrewDate(date, lang = 'he') {
   const h = hebrewParts(date);
   if (!h.day || !h.monthHe || !h.year) return '';
@@ -108,7 +108,7 @@ export function formatHebrewDate(date, lang = 'he') {
     // years are written without the thousands: 5786 -> תשפ״ו
     let y = h.year >= 5000 ? h.year % 1000 : h.year;
     if (y < 1) y = h.year;
-    return `${gematria(h.day)} ב${h.monthHe} ${gematria(y)}`;
+    return `${gematria(h.day)} ${h.monthHe} ${gematria(y)}`;
   }
   return `${h.day} ${h.monthName} ${h.year}`;
 }

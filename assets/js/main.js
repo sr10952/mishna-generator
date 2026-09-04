@@ -48,6 +48,8 @@ const DEFAULTS = {
     logoDataUrl: null,
     bgDataUrl: null,
     bgOverlay: 0.85,
+    showDailyMishnaBadge: true,
+    dailyMishnaBadgeText: '',
     showDate: true,
     showParsha: true,
     showDayCount: true,
@@ -847,6 +849,19 @@ function wire() {
   $('showRef').checked = settings.design.showRef;
   $('showRef').addEventListener('change', (e) => { settings.design.showRef = e.target.checked; onDesignSettingChange(); });
 
+  $('showDailyMishnaBadge').checked = settings.design.showDailyMishnaBadge !== false;
+  $('showDailyMishnaBadge').addEventListener('change', (e) => {
+    settings.design.showDailyMishnaBadge = e.target.checked;
+    syncDailyMishnaBadgeTextVisibility();
+    onDesignSettingChange();
+  });
+  $('dailyMishnaBadgeText').value = settings.design.dailyMishnaBadgeText || '';
+  $('dailyMishnaBadgeText').addEventListener('input', (e) => {
+    settings.design.dailyMishnaBadgeText = e.target.value;
+    onDesignSettingChange();
+  });
+  syncDailyMishnaBadgeTextVisibility();
+
   const infoToggles = [
     ['showDateInfo', 'showDate'],
     ['showParshaInfo', 'showParsha'],
@@ -935,6 +950,11 @@ function syncTextLangVisibility() {
   const heText = settings.text.language === 'he';
   $('hebrewVersionField').classList.toggle('hidden', !heText);
   $('englishVersionField').classList.toggle('hidden', heText);
+}
+
+function syncDailyMishnaBadgeTextVisibility() {
+  const field = $('dailyMishnaBadgeTextField');
+  if (field) field.hidden = settings.design.showDailyMishnaBadge === false;
 }
 
 /* ===========================================================================

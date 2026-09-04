@@ -6,6 +6,7 @@
  *   - the app boots with zero console errors
  *   - the schedule builder (Bekhorot 3:2 example from the brief)
  *   - Hebrew poster content: nikud, RTL, Hebrew date, parasha, Bartenura
+ *   - optional/custom Daily Mishna badge and no poster page-number footer
  *   - native-Hebrew mode: NOT A SINGLE Latin character on the poster
  *   - English mode + no-nikud mode
  *   - templates, letterhead text, persistence
@@ -183,7 +184,7 @@ try {
         badge: p.querySelector('.pg-badge').textContent,
         commLabel: p.querySelector('.pg-comm-label') ? p.querySelector('.pg-comm-label').textContent : '',
         attr: p.querySelector('.pg-attr').textContent,
-        pageno: p.querySelector('.pg-pageno').textContent,
+        hasPageNumber: !!p.querySelector('.pg-pageno'),
       };
     });
     assert.equal(info.dir, 'rtl');
@@ -199,7 +200,7 @@ try {
     assert.equal(info.badge, 'משנה יומית');
     assert.match(info.commLabel, /ברטנורא/);
     assert.match(info.attr, /ספריא/);
-    assert.equal(info.pageno, 'א׳ / ד׳');
+    assert.equal(info.hasPageNumber, false, 'individual posters should not carry a page N of M footer');
   });
 
   await scenario('page navigation (2/4) updates preview & table', async () => {
@@ -210,6 +211,38 @@ try {
     assert.equal(ref, 'Mishnah Bekhorot 3:3');
     const currentRow = await $eval(page, '#scheduleTable tbody tr.current', (e) => e.rowIndex - 1);
     assert.equal(currentRow, 1);
+  });
+
+  await scenario('Daily Mishna box can be customized or hidden', async () => {
+    await evalJS(page, () => {
+      const text = document.getElementById('dailyMishnaBadgeText');
+      text.value = 'לימוד משנה';
+      text.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await waitFor(page, () => $eval(page, '#renderStage .pg-badge', (e) => e.textContent === 'לימוד משנה'));
+
+    await evalJS(page, () => {
+      const toggle = document.getElementById('showDailyMishnaBadge');
+      toggle.checked = false;
+      toggle.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await waitFor(page, () => evalJS(page, () => !document.querySelector('#renderStage .pg-badge')));
+    assert.equal(await $eval(page, '#dailyMishnaBadgeTextField', (e) => e.hidden), true);
+    assert.equal(await $eval(page, '#dailyMishnaBadgeTextField', (e) => getComputedStyle(e).display), 'none');
+    assert.equal(await $eval(page, '#renderStage .pg-info', (e) => !!e), true, 'other info-line details remain visible');
+
+    // Restore the localized default so later scenarios retain their original
+    // baseline poster content.
+    await evalJS(page, () => {
+      const toggle = document.getElementById('showDailyMishnaBadge');
+      toggle.checked = true;
+      toggle.dispatchEvent(new Event('change', { bubbles: true }));
+      const text = document.getElementById('dailyMishnaBadgeText');
+      text.value = '';
+      text.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await waitFor(page, () => $eval(page, '#renderStage .pg-badge', (e) => e.textContent === 'משנה יומית'));
+    assert.equal(await $eval(page, '#dailyMishnaBadgeTextField', (e) => e.hidden), false);
   });
 
   await scenario('pdf download: 4 Letter pages, valid PDF, real ink', async () => {

@@ -27,7 +27,8 @@ texts are fetched at runtime from the public Sefaria API.
 - Mishna text from Sefaria — with or without nikud, Hebrew or English (translation)
 - Commentaries: Bartenura, Rambam, Tosafot Yom Tov (each toggleable)
 - Per-page dynamic header: weekday, Hebrew date, weekly parasha, "day N of M" counter
-- Institution letterhead, dedication line, custom footer note
+- Optional, customizable "Daily Mishnah" badge; institution letterhead, dedication line, and custom footer note
+- Posters are independent handouts, so their footers omit page N of M markers
 - Version pickers for the Hebrew and English text source
 
 **Design & templates**
@@ -68,7 +69,7 @@ then open <http://localhost:8930>. (ES modules require http:// — `file://` won
 ```bash
 npm install        # dev deps only (puppeteer-core + @sparticuz/chromium for headless tests)
 npm test           # 27 unit tests
-npm run test:e2e   # 23 end-to-end scenarios in real headless Chromium (offline, fixture-driven)
+npm run test:e2e   # 24 end-to-end scenarios in real headless Chromium (offline, fixture-driven)
 npm run test:all   # everything
 ```
 
@@ -79,8 +80,9 @@ dimensions across preview, raster PDF, PNG and print; long commentary auto-fit s
 inside the page while remaining smaller than the mishna; the html2canvas raster used for
 PDFs is **pixel-compared against the browser's own rendering** (≥ 95 % match) so
 Hebrew/RTL output can't silently break; native-Hebrew mode contains *no Latin
-characters*; nikud toggling; template switching; persistence; responsive audits at
-375/768/1280 px; and graceful degradation when Sefaria returns a 404.
+characters*; the Daily Mishnah badge can be customized or hidden; individual posters
+omit page N of M footers; nikud toggling; template switching; persistence; responsive
+audits at 375/768/1280 px; and graceful degradation when Sefaria returns a 404.
 
 ## Project structure
 

@@ -226,10 +226,15 @@ export function buildPosterPage({ entry, textData, commentaries, calendar, index
   if (design.showDayCount !== false) {
     infoBits.push(he ? `יום ${gematria(index)} מתוך ${gematria(total)}` : `Day ${index} of ${total}`);
   }
-  if (infoBits.length) {
+  // The badge is optional and its text is intentionally independent from the
+  // UI language: an institution may use its own Hebrew/English program name.
+  // Legacy saved settings do not have this field, so they retain the badge.
+  const showDailyMishnaBadge = design.showDailyMishnaBadge !== false;
+  const S = STRINGS[he ? 'he' : 'en'];
+  const dailyMishnaBadgeText = String(design.dailyMishnaBadgeText || '').trim() || S.dailyMishna;
+  if (showDailyMishnaBadge || infoBits.length) {
     const info = el('div', 'pg-info');
-    const S = STRINGS[he ? 'he' : 'en'];
-    info.appendChild(el('span', 'pg-badge', S.dailyMishna));
+    if (showDailyMishnaBadge) info.appendChild(el('span', 'pg-badge', esc(dailyMishnaBadgeText)));
     for (const b of infoBits) info.appendChild(el('span', 'pg-info-bit', esc(b)));
     content.appendChild(info);
   }
@@ -277,9 +282,8 @@ export function buildPosterPage({ entry, textData, commentaries, calendar, index
   if (design.showAttribution !== false) sourceBits.push(he ? 'באדיבות ספריא' : 'Sefaria.org');
   if (sourceBits.length) footLeft.appendChild(el('span', 'pg-attr', esc(sourceBits.join(he ? ' · ' : ' · '))));
   if (footLeft.childElementCount) foot.appendChild(footLeft);
-  if (total > 0) {
-    foot.appendChild(el('div', 'pg-pageno', he ? `${gematria(index)} / ${gematria(total)}` : `${index} / ${total}`));
-  }
+  // Posters are intentionally independent handouts, not a bound document, so
+  // do not add a page N of M marker to their footer.
   content.appendChild(foot);
 
   return page;

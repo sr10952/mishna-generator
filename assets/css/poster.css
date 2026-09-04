@@ -123,7 +123,10 @@
   color: #fff;
   font-size: 16.5px;
   font-weight: 700;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   padding: 3px 14px;
+  text-align: center;
 }
 .poster-page .pg-info-bit {
   font-size: 18.5px;
@@ -221,7 +224,6 @@
   color: var(--pg-muted);
 }
 .poster-page .pg-foot-note { display: flex; gap: 12px; flex-wrap: wrap; }
-.poster-page .pg-pageno { font-weight: 700; white-space: nowrap; }
 
 /* English posters: slightly different typography */
 .poster-page.poster-en .pg-text { font-weight: 400; line-height: 1.65; }

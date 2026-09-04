@@ -151,11 +151,16 @@
 
         <h3 class="sub-title" data-i18n="infoLine">Poster info line</h3>
         <div class="comm-toggles">
+          <label class="check chip"><input type="checkbox" id="showDailyMishnaBadge" checked /><span data-i18n="showDailyMishnaBadge">Show Daily Mishna box</span></label>
           <label class="check chip"><input type="checkbox" id="showDateInfo" checked /><span data-i18n="colHebDate">Hebrew date</span></label>
           <label class="check chip"><input type="checkbox" id="showParshaInfo" checked /><span data-i18n="colParsha">Parasha</span></label>
           <label class="check chip"><input type="checkbox" id="showDayCountInfo" checked /><span data-i18n="dayCount">Day counter</span></label>
           <label class="check chip"><input type="checkbox" id="showAttributionInfo" checked /><span data-i18n="attribution">Sefaria attribution</span></label>
         </div>
+        <label class="field" id="dailyMishnaBadgeTextField">
+          <span class="field-label" data-i18n="dailyMishnaBadgeText">Daily Mishna box text</span>
+          <input type="text" id="dailyMishnaBadgeText" data-i18n-ph="dailyMishnaBadgeTextPh" placeholder="Leave blank for “Daily Mishnah”" maxlength="60" />
+        </label>
       </div>
 
       <!-- 3. design -->

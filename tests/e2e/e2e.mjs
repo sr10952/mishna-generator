@@ -12,6 +12,7 @@
  *   - PDF download (raster) + print-to-PDF (vector) page counts and sizes
  *   - PNG export
  *   - html2canvas raster sanity (correct size, real ink on canvas)
+ *   - long-commentary auto-fit, independent commentary fonts, Letter/Legal output
  *   - responsive layout at 375 / 768 / 1280 px
  *   - graceful degradation when a text is unavailable
  *
@@ -266,6 +267,54 @@ try {
     assert.ok(stats.dark > 5000, `ink pixels: ${stats.dark}`);
   });
 
+  await scenario('long commentary auto-fit shrinks commentary first without clipping', async () => {
+    const fit = await evalJS(page, async () => {
+      const poster = document.querySelector('#renderStage .poster-page');
+      const main = poster.querySelector('.pg-main');
+      const mishna = poster.querySelector('.pg-text');
+      const commentary = poster.querySelector('.pg-comm-text');
+      const source = commentary.textContent;
+      const setParagraphs = (count) => {
+        commentary.innerHTML = '';
+        for (let i = 0; i < count; i++) {
+          const p = document.createElement('p');
+          p.textContent = source;
+          commentary.appendChild(p);
+        }
+      };
+      const { autofitPage } = await import('/assets/js/poster.js');
+
+      // This amount only needs the commentary to compact. It proves the
+      // mishna is not sacrificed before commentary space is used.
+      setParagraphs(8);
+      autofitPage(poster);
+      const commentaryFirst = {
+        mishna: parseFloat(getComputedStyle(mishna).fontSize),
+        commentary: parseFloat(getComputedStyle(commentary).fontSize),
+      };
+
+      // A genuinely long commentary reaches the explicit commentary floor and
+      // then lets the mishna compact too. It must still have no hidden rows.
+      setParagraphs(16);
+      autofitPage(poster);
+      return {
+        commentaryFirst,
+        mishna: parseFloat(getComputedStyle(mishna).fontSize),
+        commentary: parseFloat(getComputedStyle(commentary).fontSize),
+        mainClientHeight: main.clientHeight,
+        mainScrollHeight: main.scrollHeight,
+        atFloor: poster.dataset.fitAtFloor,
+        overflow: poster.dataset.fitOverflow,
+      };
+    });
+    assert.ok(fit.commentaryFirst.mishna >= 34.9, `mishna shrank too early: ${fit.commentaryFirst.mishna}px`);
+    assert.ok(fit.commentaryFirst.commentary < 16, `commentary did not shrink first: ${fit.commentaryFirst.commentary}px`);
+    assert.ok(fit.commentary <= fit.mishna * 0.8 + 0.05, `${fit.commentary}px commentary exceeds 80% of ${fit.mishna}px mishna`);
+    assert.equal(fit.atFloor, 'true', 'long content should be allowed to reach an explicit floor');
+    assert.equal(fit.overflow, '0');
+    assert.ok(fit.mainScrollHeight <= fit.mainClientHeight + 2, `${fit.mainScrollHeight}px content exceeds ${fit.mainClientHeight}px region`);
+  });
+
   await scenario('native Hebrew mode: zero Latin characters on the poster', async () => {
     await evalJS(page, () => document.getElementById('langToggle').click());
     await sleep(100);
@@ -354,10 +403,97 @@ try {
     });
   });
 
+  await scenario('commentary font can differ from the mishna font', async () => {
+    await evalJS(page, () => {
+      const posterFont = document.getElementById('fontSel');
+      posterFont.value = 'heebo';
+      posterFont.dispatchEvent(new Event('change', { bubbles: true }));
+      const commentaryFont = document.getElementById('commentaryFontSel');
+      commentaryFont.value = 'david';
+      commentaryFont.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await sleep(100);
+    const fonts = await evalJS(page, () => {
+      const poster = document.querySelector('#renderStage .poster-page');
+      return {
+        mishna: getComputedStyle(poster.querySelector('.pg-text')).fontFamily,
+        commentary: getComputedStyle(poster.querySelector('.pg-comm-text')).fontFamily,
+        label: getComputedStyle(poster.querySelector('.pg-comm-label')).fontFamily,
+      };
+    });
+    assert.match(fonts.mishna, /Heebo/i);
+    assert.match(fonts.commentary, /David Libre/i);
+    assert.match(fonts.label, /David Libre/i);
+  });
+
   await scenario('settings persist across reloads', async () => {
+    await sleep(300); // localStorage writes are intentionally debounced
     await page.reload({ waitUntil: 'networkidle0' });
     assert.equal(await $eval(page, '#institution', (e) => e.value), 'Congregation Test');
     assert.equal(await $eval(page, '#masechetSel', (e) => e.value), 'Mishnah Bekhorot');
+    assert.equal(await $eval(page, '#fontSel', (e) => e.value), 'heebo');
+    assert.equal(await $eval(page, '#commentaryFontSel', (e) => e.value), 'david');
+  });
+
+  await scenario('Legal page size drives poster, preview, PNG, raster PDF, and print', async () => {
+    await evalJS(page, () => {
+      const size = document.getElementById('pageSizeSel');
+      size.value = 'legal';
+      size.dispatchEvent(new Event('change', { bubbles: true }));
+      const count = document.getElementById('count');
+      count.value = '1';
+      count.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await clickBuild(page);
+
+    const dimensions = await evalJS(page, async () => {
+      const poster = document.querySelector('#renderStage .poster-page');
+      const preview = document.querySelector('#previewCanvas .poster-page');
+      const canvas = document.getElementById('previewCanvas');
+      const { renderPagePng } = await import('/assets/js/pdf.js');
+      const png = await renderPagePng(poster, 1);
+      const image = new Image();
+      await new Promise((resolve, reject) => {
+        image.onload = resolve;
+        image.onerror = reject;
+        image.src = png;
+      });
+      return {
+        pageSize: poster.dataset.pageSize,
+        poster: [poster.offsetWidth, poster.offsetHeight],
+        preview: [preview.offsetWidth, preview.offsetHeight],
+        previewAspect: canvas.style.aspectRatio,
+        png: [image.naturalWidth, image.naturalHeight],
+        printRule: document.getElementById('printPageSizeStyle').textContent,
+      };
+    });
+    assert.equal(dimensions.pageSize, 'legal');
+    assert.deepEqual(dimensions.poster, [816, 1344]);
+    assert.deepEqual(dimensions.preview, [816, 1344]);
+    assert.equal(dimensions.previewAspect, '816 / 1344');
+    assert.deepEqual(dimensions.png, [816, 1344]);
+    assert.match(dimensions.printRule, /size:\s*legal portrait/);
+
+    await evalJS(page, () => {
+      const quality = document.getElementById('qualitySel');
+      quality.value = 'draft';
+      quality.dispatchEvent(new Event('change', { bubbles: true }));
+      document.getElementById('downloadPdfBtn').click();
+    });
+    const filename = await waitForDownload();
+    const rasterPdf = readFileSync(path.join(DOWNLOADS, filename));
+    assert.equal(countPdfPages(rasterPdf), 1, 'Legal raster PDF page count');
+    assert.match(pdfText(rasterPdf), /\/MediaBox\s*\[0 0 612\.? 1008\.?\]/, 'Legal raster PDF MediaBox');
+    rmSync(path.join(DOWNLOADS, filename));
+
+    await evalJS(page, () => {
+      const stage = document.getElementById('printStage');
+      stage.innerHTML = '';
+      document.querySelectorAll('#renderStage .poster-page').forEach((p) => stage.appendChild(p.cloneNode(true)));
+    });
+    const printPdf = await page.pdf({ format: 'letter', printBackground: true, preferCSSPageSize: true });
+    assert.equal(countPdfPages(printPdf), 1, 'Legal print PDF page count');
+    assert.match(pdfText(printPdf), /\/MediaBox\s*\[0 0 612 1008\]/, 'Legal print PDF MediaBox');
   });
 
   await scenario('responsive: 375px phone - no overflow, mobile tabs work', async () => {

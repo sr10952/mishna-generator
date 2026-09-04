@@ -3,8 +3,9 @@
 A free, fully client-side web app that generates **printable daily-Mishnah study posters**
 from open-source [Sefaria](https://sefaria.org) texts. Pick where you're starting
 (e.g. *Bekhorot 3:2*), how many mishnayot (up to 30), and which days of the week to
-learn — the app builds the schedule, lays out **one mishna per US-Letter page** with the
-Hebrew date, weekday, weekly parasha and day counter, and exports a ready-to-print PDF.
+learn — the app builds the schedule, lays out **one mishna per US Letter or Legal page**
+with the Hebrew date, weekday, weekly parasha and day counter, and exports a
+ready-to-print PDF.
 
 Everything runs in the browser. There is **no build step, no backend, and no tracking** —
 texts are fetched at runtime from the public Sefaria API.
@@ -33,12 +34,13 @@ texts are fetched at runtime from the public Sefaria API.
 - 6 built-in templates (Classic Parchment, Modern Minimal, Royal Blue & Gold,
   Elegant Ivory, Fresh Garden, Night Learning) + "Surprise me" auto-generated palettes
 - Upload your own **logo** and **background image** for a fully custom letterhead
-- Accent color picker, font choice, overlay darkness control for background images
+- Accent color picker, independent mishna and commentary font choices, overlay darkness control for background images
+- Letter (8.5″ × 11″) or Legal (8.5″ × 14″) page size, consistently applied to preview, PDF, PNG and print
 
 **Output**
-- **PDF download** — US Letter (8.5″ × 11″), one mishna per page, 192 / 288 / 384 DPI
-- **Vector print** via the browser print dialog (`Ctrl/Cmd-P`) — smallest files, crisp text
-- **PNG export** of the current page
+- **PDF download** — US Letter (8.5″ × 11″) or Legal (8.5″ × 14″), one mishna per page, 192 / 288 / 384 DPI
+- **Vector print** via the browser print dialog (`Ctrl/Cmd-P`) — smallest files, crisp text, selected page size
+- **PNG export** of the current page at the selected page dimensions
 - All settings persist in `localStorage`
 
 **Interface**
@@ -66,17 +68,19 @@ then open <http://localhost:8930>. (ES modules require http:// — `file://` won
 ```bash
 npm install        # dev deps only (puppeteer-core + @sparticuz/chromium for headless tests)
 npm test           # 27 unit tests
-npm run test:e2e   # 20 end-to-end scenarios in real headless Chromium (offline, fixture-driven)
+npm run test:e2e   # 23 end-to-end scenarios in real headless Chromium (offline, fixture-driven)
 npm run test:all   # everything
 ```
 
 E2E coverage highlights: zero console errors on boot; the Bekhorot 3:2 × 4-days example
 from the brief (schedule, parasha/Hebrew-date headers, day counter); PDF export is a
-valid 4-page Letter-size document with real ink; the html2canvas raster used for PDFs is
-**pixel-compared against the browser's own rendering** (≥ 95 % match) so Hebrew/RTL
-output can't silently break; native-Hebrew mode contains *no Latin characters*; nikud
-toggling; template switching; persistence; responsive audits at 375/768/1280 px; and
-graceful degradation when Sefaria returns a 404.
+valid 4-page Letter-size document with real ink; Legal output keeps its 8.5″ × 14″
+dimensions across preview, raster PDF, PNG and print; long commentary auto-fit stays
+inside the page while remaining smaller than the mishna; the html2canvas raster used for
+PDFs is **pixel-compared against the browser's own rendering** (≥ 95 % match) so
+Hebrew/RTL output can't silently break; native-Hebrew mode contains *no Latin
+characters*; nikud toggling; template switching; persistence; responsive audits at
+375/768/1280 px; and graceful degradation when Sefaria returns a 404.
 
 ## Project structure
 

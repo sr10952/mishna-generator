@@ -1,8 +1,8 @@
 /**
- * poster.js - Builds a Letter-size (8.5in x 11in @96dpi = 816x1056px) poster
- * page for a single mishna, with built-in and randomized templates, uploaded
- * letterhead/logo & background images, and automatic text fitting so that the
- * whole mishna (plus selected commentaries) always fits on ONE page.
+ * poster.js - Builds a US Letter or Legal poster page for a single mishna,
+ * with built-in and randomized templates, uploaded letterhead/logo &
+ * background images, and automatic text fitting so that the whole mishna
+ * (plus selected commentaries) always fits on ONE page.
  *
  * The same DOM is used for the on-screen preview and for the PDF raster, so
  * the preview is exactly what gets printed.
@@ -15,8 +15,50 @@ import {
 } from './hebrew.js';
 import { STRINGS } from './i18n.js';
 
-export const PAGE_W = 816; // 8.5in * 96
-export const PAGE_H = 1056; // 11in * 96
+/**
+ * Physical poster formats. The raster dimensions are based on CSS's 96 px/in
+ * so a 2x/3x/4x html2canvas render remains 192/288/384 DPI for either format.
+ * Keep the Letter constants below for callers that imported them before Legal
+ * support was added.
+ */
+export const PAGE_SIZES = Object.freeze({
+  letter: Object.freeze({
+    id: 'letter',
+    width: 816, // 8.5in * 96
+    height: 1056, // 11in * 96
+    widthIn: 8.5,
+    heightIn: 11,
+    widthPt: 612,
+    heightPt: 792,
+    pdfFormat: 'letter',
+    printFormat: 'letter',
+  }),
+  legal: Object.freeze({
+    id: 'legal',
+    width: 816, // 8.5in * 96
+    height: 1344, // 14in * 96
+    widthIn: 8.5,
+    heightIn: 14,
+    widthPt: 612,
+    heightPt: 1008,
+    pdfFormat: 'legal',
+    printFormat: 'legal',
+  }),
+});
+
+/** Return a supported size, safely falling back for old/invalid saved data. */
+export function getPageSize(size) {
+  return PAGE_SIZES[size] || PAGE_SIZES.letter;
+}
+
+/** Resolve the format carried by a rendered poster element. */
+export function getPageSizeForElement(page) {
+  return getPageSize(page && page.dataset ? page.dataset.pageSize : null);
+}
+
+// Legacy/default Letter exports. New rendering code should use getPageSize().
+export const PAGE_W = PAGE_SIZES.letter.width;
+export const PAGE_H = PAGE_SIZES.letter.height;
 
 export const FONTS = {
   frank: { css: "'Frank Ruhl Libre', 'David Libre', Georgia, serif", i18nKey: 'fontFrank' },
@@ -116,6 +158,7 @@ function esc(s) {
 export function buildPosterPage({ entry, textData, commentaries, calendar, index, total, settings, lang }) {
   const he = lang === 'he';
   const design = settings.design;
+  const pageSize = getPageSize(design.pageSize);
   const masechet = findMasechet(entry.book);
   const template = design.templateDef || TEMPLATES[0];
   const date = parseISODate(entry.date);
@@ -129,8 +172,14 @@ export function buildPosterPage({ entry, textData, commentaries, calendar, index
   }
   if (design.frame) page.style.setProperty('--pg-frame-style', design.frame);
   page.style.setProperty('--pg-font', (FONTS[design.font] || FONTS.frank).css);
+  page.style.setProperty('--pg-comm-font', (FONTS[design.commentaryFont] || FONTS[design.font] || FONTS.frank).css);
+  page.style.setProperty('--pg-page-width', `${pageSize.width}px`);
+  page.style.setProperty('--pg-page-height', `${pageSize.height}px`);
   page.dataset.ref = `${entry.book} ${entry.chapter}:${entry.mishna}`;
   page.dataset.page = String(index);
+  page.dataset.pageSize = pageSize.id;
+  page.dataset.pageWidth = String(pageSize.width);
+  page.dataset.pageHeight = String(pageSize.height);
 
   // --- background layers -----------------------------------------------
   if (design.bgDataUrl) {
@@ -237,8 +286,18 @@ export function buildPosterPage({ entry, textData, commentaries, calendar, index
 }
 
 /**
- * Auto-fit: shrink the mishna text & commentaries until everything fits in
- * the page. Returns the applied scale (1 = no shrink needed).
+ * Auto-fit mishna and commentary independently.
+ *
+ * Commentary used to have fixed child font sizes in CSS. Changing the
+ * wrapper's font size therefore did nothing, so the mishna kept shrinking
+ * while an over-large commentary was eventually clipped by .pg-main. Here we
+ * deliberately reduce commentary first, then reduce the mishna only when the
+ * commentary has reached its readable floor. Commentary is never allowed to
+ * exceed 80% of the actual mishna size.
+ *
+ * Returns the applied mishna scale (relative to the 33px base), preserving
+ * the old public return shape. Per-region values are also exposed as data
+ * attributes for diagnostics and tests.
  */
 export function autofitPage(page, { userScale = 1 } = {}) {
   const main = page.querySelector('.pg-main');
@@ -248,52 +307,121 @@ export function autofitPage(page, { userScale = 1 } = {}) {
 
   const BASE_TEXT = 33;
   const BASE_COMM = 16;
+  // These are physical-pixel floors, not scale floors: a user may request a
+  // smaller starting scale, but automatic fitting never needlessly goes below
+  // these readable last-resort values.
+  const MIN_TEXT = 11;
+  const MIN_COMM = 8;
+  const COMM_MAX_RATIO = 0.8;
+  const START_SCALE = 1.06;
+  const MAX_SCALE = 1.25;
+  const EPSILON = 0.015;
+  const scaleInput = Number.isFinite(Number(userScale)) && Number(userScale) > 0 ? Number(userScale) : 1;
+  const startText = BASE_TEXT * START_SCALE * scaleInput;
+  const maxText = BASE_TEXT * MAX_SCALE * scaleInput;
+  const minText = Math.min(startText, MIN_TEXT);
 
-  let scale = 1.06 * userScale;
-  const minScale = 0.42 * Math.min(1, userScale);
-  const apply = (s) => {
-    textEl.style.fontSize = `${(BASE_TEXT * s).toFixed(1)}px`;
-    textEl.style.lineHeight = String(1.55 + 0.32 * Math.min(1, s)); // slightly tighter when shrunk
+  const capCommentary = (wanted, textSize) => Math.min(wanted, textSize * COMM_MAX_RATIO);
+  const startComm = capCommentary(BASE_COMM * START_SCALE * scaleInput, startText);
+  const minComm = Math.min(startComm, MIN_COMM);
+
+  let appliedText = startText;
+  let appliedComm = commEl ? startComm : 0;
+  const px = (value) => Math.round(value * 100) / 100;
+
+  const apply = (textSize, commentarySize = 0) => {
+    appliedText = px(textSize);
+    textEl.style.fontSize = `${appliedText}px`;
+    textEl.style.lineHeight = String(1.55 + 0.32 * Math.min(1, appliedText / BASE_TEXT));
     if (commEl) {
-      commEl.style.fontSize = `${(BASE_COMM * s).toFixed(1)}px`;
-      commEl.style.lineHeight = String(1.5 + 0.25 * Math.min(1, s));
+      // The cap is applied every time, including at the hard floor, so custom
+      // commentary fonts can never render larger than the mishna. Rounding
+      // the cap downward keeps the *rendered* CSS value at or below 80% too.
+      const cap = Math.floor(appliedText * COMM_MAX_RATIO * 100) / 100;
+      appliedComm = Math.min(px(capCommentary(commentarySize, appliedText)), cap);
+      commEl.style.fontSize = `${appliedComm}px`;
+      commEl.style.lineHeight = String(1.5 + 0.25 * Math.min(1, appliedComm / BASE_COMM));
     }
   };
   const fits = () => main.scrollHeight <= main.clientHeight + 2;
+  const finish = () => {
+    const fit = fits();
+    page.dataset.textScale = (appliedText / BASE_TEXT).toFixed(3);
+    if (commEl) page.dataset.commentaryScale = (appliedComm / BASE_COMM).toFixed(3);
+    else delete page.dataset.commentaryScale;
+    const atFloor = appliedText <= minText + EPSILON || !!(commEl && appliedComm <= minComm + EPSILON);
+    page.dataset.fitAtFloor = atFloor ? 'true' : 'false';
+    page.dataset.fitOverflow = fit ? '0' : '1';
+    return appliedText / BASE_TEXT;
+  };
 
-  apply(scale);
-  // binary search between minScale and current scale
-  let lo = minScale;
-  let hi = scale;
-  if (fits()) {
-    // try growing a bit for short mishnas
-    hi = 1.25 * userScale;
-    apply(hi);
-    if (fits()) return hi;
-    while (hi - lo > 0.02) {
+  // Search from the first known-fitting candidate toward the largest one.
+  // `applyCandidate` must synchronously apply its value before `fits()` reads
+  // layout, which is true for style writes in a live DOM.
+  const largestThatFits = (low, high, applyCandidate) => {
+    let lo = low;
+    let hi = high;
+    while (hi - lo > EPSILON) {
       const mid = (lo + hi) / 2;
-      apply(mid);
-      if (fits()) lo = mid; else hi = mid;
+      applyCandidate(mid);
+      if (fits()) lo = mid;
+      else hi = mid;
     }
-    apply(lo);
+    applyCandidate(lo);
     return lo;
+  };
+
+  apply(startText, startComm);
+  if (fits()) {
+    // Short content gets the same pleasant enlargement as before. Grow both
+    // regions proportionally while keeping the 80% commentary ceiling.
+    const applyGrowing = (textSize) => apply(
+      textSize,
+      capCommentary(BASE_COMM * (textSize / BASE_TEXT), textSize),
+    );
+    applyGrowing(maxText);
+    if (fits()) return finish();
+    largestThatFits(startText, maxText, applyGrowing);
+    return finish();
   }
-  while (hi - lo > 0.015) {
-    const mid = (lo + hi) / 2;
-    apply(mid);
-    if (fits()) lo = mid; else hi = mid;
+
+  if (commEl) {
+    // First spend available space on the commentary. This is the important
+    // ordering: a long commentary no longer forces the mishna to become tiny
+    // while the commentary is left at a CSS-pinned size.
+    apply(startText, minComm);
+    if (fits()) {
+      largestThatFits(minComm, startComm, (commSize) => apply(startText, commSize));
+      return finish();
+    }
   }
-  apply(Math.max(lo, minScale));
-  return Math.max(lo, minScale);
+
+  // Commentary is at its floor (or absent). Only now compact the mishna. The
+  // commentary stays at its floor unless the 80% cap needs it even smaller.
+  const commentaryAtText = (textSize) => commEl ? capCommentary(minComm, textSize) : 0;
+  const applyShrinking = (textSize) => apply(textSize, commentaryAtText(textSize));
+  applyShrinking(minText);
+  if (fits()) {
+    largestThatFits(minText, startText, applyShrinking);
+  }
+  // If truly extraordinary content still cannot fit at both explicit floors,
+  // keep those explicit floors and flag the exceptional condition. The caller
+  // can surface it rather than silently presenting a half-fitted layout.
+  return finish();
 }
 
 /** Warm up the fonts used by a page so html2canvas measures real glyphs. */
 export async function ensureFontsLoaded(design) {
-  const fam = (FONTS[design.font] || FONTS.frank).css;
-  const family = fam.split(',')[0].replace(/'/g, '');
+  const primaryFont = FONTS[design.font] ? design.font : 'frank';
+  const commentaryFont = FONTS[design.commentaryFont] ? design.commentaryFont : primaryFont;
+  const fontKeys = new Set([primaryFont, commentaryFont]);
   const loads = [];
-  for (const spec of [`400 20px ${family}`, `700 20px ${family}`, `900 20px ${family}`]) {
-    try { loads.push(document.fonts.load(spec, 'אA')); } catch { /* older browsers */ }
+  for (const key of fontKeys) {
+    const fam = (FONTS[key] || FONTS.frank).css;
+    const family = fam.split(',')[0].replace(/'/g, '');
+    for (const spec of [`400 20px ${family}`, `700 20px ${family}`, `900 20px ${family}`]) {
+      try { loads.push(document.fonts.load(spec, 'אA')); } catch { /* older browsers */ }
+    }
   }
   await Promise.all(loads).catch(() => {});
   try { await document.fonts.ready; } catch { /* ignore */ }

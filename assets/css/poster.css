@@ -1,8 +1,8 @@
 /* ==========================================================================
-   poster.css - styles for the Letter-size (816x1056 px = 8.5"x11" @96dpi)
-   poster page. This stylesheet is deliberately free of media queries,
-   box-shadows and other features html2canvas renders imperfectly, so the
-   preview, the PDF and the print output all look identical.
+   poster.css - styles for Letter (816x1056 px) and Legal (816x1344 px)
+   poster pages at 96px/in. This stylesheet is deliberately free of media
+   queries, box-shadows and other features html2canvas renders imperfectly,
+   so the preview, the PDF and the print output all look identical.
    ========================================================================== */
 
 /* -- base page ---------------------------------------------------------- */
@@ -15,13 +15,16 @@
   --pg-frame: #6b4f2a;
   --pg-frame-style: double;
   --pg-font: 'Frank Ruhl Libre', 'David Libre', Georgia, serif;
+  --pg-comm-font: var(--pg-font);
+  --pg-page-width: 816px;
+  --pg-page-height: 1056px;
   --pg-title-color: var(--pg-ink);
   --pg-head-band: transparent;
   --pg-head-band-ink: var(--pg-ink);
 
   position: relative;
-  width: 816px;
-  height: 1056px;
+  width: var(--pg-page-width);
+  height: var(--pg-page-height);
   background: var(--pg-bg);
   color: var(--pg-ink);
   font-family: var(--pg-font);
@@ -171,24 +174,32 @@
 .poster-page .pg-text p:last-child { margin-bottom: 0; }
 .poster-page .pg-text b, .poster-page .pg-text strong { font-weight: 800; }
 
-/* commentaries */
-.poster-page .pg-commentary { margin-top: 14px; }
-.poster-page .pg-comm-block + .pg-comm-block { margin-top: 12px; }
-.poster-page .pg-comm-label {
+/* commentaries
+   The wrapper owns all scalable typography. Child sizes must stay relative so
+   autofit can really shrink the commentary instead of clipping it. */
+.poster-page .pg-commentary {
+  margin-top: 0.875em;
+  font-family: var(--pg-comm-font, var(--pg-font));
   font-size: 16px;
+  line-height: 1.72;
+}
+.poster-page .pg-comm-block + .pg-comm-block { margin-top: 0.75em; }
+.poster-page .pg-comm-label {
+  font-size: 0.95em;
+  line-height: 1.2;
   font-weight: 700;
   color: #fff;
   background: var(--pg-accent);
   display: inline-block;
-  padding: 1px 10px;
-  margin: 0 0 6px;
+  padding: 0.08em 0.625em;
+  margin: 0 0 0.375em;
 }
 .poster-page .pg-comm-text {
-  font-size: 16px;
-  line-height: 1.72;
+  font-size: 1em;
+  line-height: inherit;
   color: var(--pg-comm-ink, var(--pg-ink));
   border-top: 2px solid var(--pg-comm-rule, var(--pg-accent));
-  padding-top: 6px;
+  padding-top: 0.375em;
 }
 /* explicit physical alignment (html2canvas does not resolve text-align:start) */
 .poster-he .pg-text, .poster-he .pg-comm-text { text-align: right; }
@@ -335,9 +346,11 @@
 }
 #renderStage .poster-page { margin-bottom: 24px; }
 
-/* print: every poster becomes exactly one Letter page */
+/* print: every poster becomes exactly one selected page. main.js writes the
+   matching @page rule immediately before print so browser print dialogs and
+   headless print-to-PDF both inherit Letter or Legal. */
 @media print {
-  @page { size: letter portrait; margin: 0; }
+  @page { margin: 0; }
   body { background: #fff; }
   body > *:not(#printStage) { display: none !important; }
   #printStage {
@@ -346,11 +359,17 @@
   }
   #printStage .poster-page {
     position: static !important;
-    width: 8.5in !important;
-    height: 11in !important;
     transform: none !important;
     page-break-after: always;
     break-after: page;
+  }
+  #printStage .poster-page[data-page-size='letter'] {
+    width: 8.5in !important;
+    height: 11in !important;
+  }
+  #printStage .poster-page[data-page-size='legal'] {
+    width: 8.5in !important;
+    height: 14in !important;
   }
   #printStage .poster-page:last-child { page-break-after: auto; break-after: auto; }
 }

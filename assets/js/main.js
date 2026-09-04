@@ -8,7 +8,7 @@ import { MISHNAH, SEDARIM, findMasechet, COMMENTARIES, ENGLISH_VERSIONS, HEBREW_
 import { buildSchedule, validateSettings, MAX_MISHNAS, totalMishnas } from './schedule.js';
 import { apiRef, commentaryRef, formatHebrewDate, formatGregorianDate, formatWeekday, parseISODate, isoDate, saturdayOf, gematria, masechetHeName, containsLatinLetters } from './hebrew.js';
 import { getText, getCalendar, runPool, clearSefariaCache } from './sefaria.js';
-import { buildPosterPage, autofitPage, ensureFontsLoaded, TEMPLATES, FONTS, PAGE_W, PAGE_H, randomTemplate } from './poster.js';
+import { buildPosterPage, autofitPage, ensureFontsLoaded, TEMPLATES, FONTS, getPageSize, getPageSizeForElement, randomTemplate } from './poster.js';
 import { generatePdf, renderPagePng, savePdf, suggestedFilename, QUALITIES } from './pdf.js';
 
 /* ===========================================================================
@@ -39,6 +39,8 @@ const DEFAULTS = {
     template: 'classic',
     autoTemplateSeed: null,
     font: 'frank',
+    commentaryFont: 'frank',
+    pageSize: 'letter',
     accent: '#8a6d3b',
     institution: '',
     dedication: '',
@@ -74,6 +76,12 @@ function loadSettings() {
       text: { ...merged.text, ...(s.text || {}) },
       design: { ...merged.design, ...(s.design || {}) },
     });
+    // Saved settings predate both controls. Preserve the old "one font for
+    // everything" behavior for those users, while safely handling malformed
+    // localStorage values.
+    if (!s.design || !s.design.commentaryFont || !FONTS[merged.design.commentaryFont]) merged.design.commentaryFont = FONTS[merged.design.font] ? merged.design.font : 'frank';
+    if (!FONTS[merged.design.font]) merged.design.font = 'frank';
+    merged.design.pageSize = getPageSize(merged.design.pageSize).id;
     return merged;
   } catch {
     return structuredClone(DEFAULTS);
@@ -107,6 +115,35 @@ function el(tag, cls, html) {
   if (cls) e.className = cls;
   if (html != null) e.innerHTML = html;
   return e;
+}
+
+/** Keep CSS print media, render stage, and saved state on the same format. */
+function syncPageSize() {
+  const pageSize = getPageSize(settings.design.pageSize);
+  settings.design.pageSize = pageSize.id;
+  document.documentElement.dataset.posterPageSize = pageSize.id;
+
+  const renderStage = $('renderStage');
+  if (renderStage) renderStage.style.width = `${pageSize.width}px`;
+  const previewCanvas = $('previewCanvas');
+  if (previewCanvas) previewCanvas.style.aspectRatio = `${pageSize.width} / ${pageSize.height}`;
+
+  // @page cannot depend on a normal element selector or custom property. A
+  // tiny generated rule is the reliable way to make the browser's print
+  // dialog (and headless print-to-PDF) honor the selected format.
+  let style = document.getElementById('printPageSizeStyle');
+  if (!style) {
+    style = document.createElement('style');
+    style.id = 'printPageSizeStyle';
+    document.head.appendChild(style);
+  }
+  style.textContent = `@media print { @page { size: ${pageSize.printFormat} portrait; margin: 0; } }`;
+  return pageSize;
+}
+
+function pageSizeLabel(page) {
+  const size = getPageSizeForElement(page);
+  return t(size.id === 'legal' ? 'pageSizeLegal' : 'pageSizeLetter');
 }
 
 /* ===========================================================================
@@ -202,14 +239,18 @@ function currentAutoTemplate() {
 }
 
 function renderFontOptions() {
-  const sel = $('fontSel');
-  sel.innerHTML = '';
-  for (const [key, f] of Object.entries(FONTS)) {
-    const opt = el('option', null, t(f.i18nKey));
-    opt.value = key;
-    opt.selected = settings.design.font === key;
-    sel.appendChild(opt);
-  }
+  const fill = (id, selected) => {
+    const sel = $(id);
+    sel.innerHTML = '';
+    for (const [key, f] of Object.entries(FONTS)) {
+      const opt = el('option', null, t(f.i18nKey));
+      opt.value = key;
+      opt.selected = selected === key;
+      sel.appendChild(opt);
+    }
+  };
+  fill('fontSel', settings.design.font);
+  fill('commentaryFontSel', settings.design.commentaryFont);
 }
 
 function renderVersionOptions() {
@@ -310,11 +351,22 @@ function onContentSettingChange() {
   markStale();
 }
 
+let designRenderVersion = 0;
 function onDesignSettingChange() {
   saveSettings();
+  syncPageSize();
   if (entryData.length && schedule) {
+    const version = ++designRenderVersion;
     rebuildAllPages();
     renderPreview(pageIndex);
+    // A newly selected (especially commentary) font may not have been loaded
+    // when the first layout pass runs. Refit once real glyph metrics are ready
+    // so a fallback font can never reintroduce clipping.
+    ensureFontsLoaded(settings.design).then(() => {
+      if (version !== designRenderVersion || !entryData.length || !schedule) return;
+      rebuildAllPages();
+      renderPreview(pageIndex);
+    });
   }
 }
 
@@ -474,6 +526,8 @@ function templateDef() {
 
 function rebuildAllPages() {
   const stage = $('renderStage');
+  const pageSize = syncPageSize();
+  stage.style.width = `${pageSize.width}px`;
   stage.innerHTML = '';
   stagePages = [];
   if (!schedule || !entryData.length) return;
@@ -493,7 +547,7 @@ function rebuildAllPages() {
     });
     stage.appendChild(page);
     const scale = autofitPage(page, { userScale: 1 });
-    if (scale < 0.58) compacted = true;
+    if (scale < 0.58 || page.dataset.fitAtFloor === 'true' || page.dataset.fitOverflow === '1') compacted = true;
     stagePages.push(page);
   });
   const warn = $('warnLine');
@@ -514,6 +568,8 @@ function renderPreview(i) {
   canvas.querySelectorAll('.poster-page').forEach((n) => n.remove());
   $('previewEmpty').classList.toggle('hidden', true);
   const clone = stagePages[pageIndex].cloneNode(true);
+  const pageSize = getPageSizeForElement(clone);
+  canvas.style.aspectRatio = `${pageSize.width} / ${pageSize.height}`;
   clone.style.transform = 'none';
   canvas.appendChild(clone);
   scalePreview();
@@ -525,8 +581,9 @@ function scalePreview() {
   const canvas = $('previewCanvas');
   const page = canvas.querySelector('.poster-page');
   if (!page) return;
+  const pageSize = getPageSizeForElement(page);
   const w = canvas.clientWidth;
-  const scale = w / PAGE_W;
+  const scale = w / pageSize.width;
   page.style.transform = `scale(${scale})`;
 }
 
@@ -540,9 +597,11 @@ function updatePreviewChrome() {
   // Latin letters anywhere on the page - assert it in the preview note.
   if (total && posterLang() === 'he' && stagePages[pageIndex]) {
     const txt = stagePages[pageIndex].textContent || '';
-    $('previewNote').textContent = containsLatinLetters(txt) ? '⚠ Latin characters detected on this page' : 'עברית מלאה · טקסט מספריא';
+    $('previewNote').textContent = containsLatinLetters(txt)
+      ? '⚠ Latin characters detected on this page'
+      : `${pageSizeLabel(stagePages[pageIndex])} · עברית מלאה · טקסט מספריא`;
   } else if (total) {
-    $('previewNote').textContent = 'Letter 8.5" × 11" · Sefaria text';
+    $('previewNote').textContent = `${pageSizeLabel(stagePages[pageIndex])} · Sefaria text`;
   } else {
     $('previewNote').textContent = '';
   }
@@ -596,6 +655,7 @@ async function downloadPdf() {
     }
     const doc = await generatePdf(stagePages, {
       quality: settings.design.quality,
+      pageSize: settings.design.pageSize,
       onProgress: (done, total) => setProgress(done, total, t('downloading')),
     });
     savePdf(doc, suggestedFilename(schedule, settings));
@@ -624,6 +684,7 @@ async function downloadPng() {
 }
 
 function printPosters() {
+  syncPageSize();
   const stage = $('printStage');
   stage.innerHTML = '';
   for (const p of stagePages) stage.appendChild(p.cloneNode(true));
@@ -811,6 +872,12 @@ function wire() {
   });
 
   $('fontSel').addEventListener('change', (e) => { settings.design.font = e.target.value; onDesignSettingChange(); });
+  $('commentaryFontSel').addEventListener('change', (e) => { settings.design.commentaryFont = e.target.value; onDesignSettingChange(); });
+  $('pageSizeSel').value = getPageSize(settings.design.pageSize).id;
+  $('pageSizeSel').addEventListener('change', (e) => {
+    settings.design.pageSize = getPageSize(e.target.value).id;
+    onDesignSettingChange();
+  });
   $('accentColor').value = settings.design.accent;
   $('accentColor').addEventListener('input', (e) => {
     settings.design.accent = e.target.value;
@@ -876,6 +943,7 @@ function syncTextLangVisibility() {
 
 function init() {
   setLang(settings.lang || 'en');
+  syncPageSize();
   wire();
   applyI18n();
   syncTextLangVisibility();

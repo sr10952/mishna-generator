@@ -9,7 +9,7 @@ export const STRINGS = {
   en: {
     // header / general
     appTitle: 'Mishna Poster Generator',
-    appSubtitle: 'Daily Mishnah learning posters - Letter size, one mishna per page',
+    appSubtitle: 'Daily Mishnah learning posters - one mishna per page',
     poweredBy: 'Texts from Sefaria.org',
     langToggle: 'עברית',
     // steps
@@ -49,6 +49,10 @@ export const STRINGS = {
     template: 'Template',
     surprise: 'Surprise me',
     posterFont: 'Poster font',
+    commentaryFont: 'Commentary font',
+    pageSize: 'Page size',
+    pageSizeLetter: 'Letter (8.5 × 11 in)',
+    pageSizeLegal: 'Legal (8.5 × 14 in)',
     accentColor: 'Accent color',
     institution: 'Institution / letterhead name',
     institutionPh: 'e.g. Congregation Bnei Torah',
@@ -101,7 +105,7 @@ export const STRINGS = {
     errNoText: 'No text found for {ref}.',
     retry: 'Retry',
     warnWrap: 'Schedule continues into the next tractate.',
-    warnCompact: 'This mishna is long - text was auto-shrunk to fit the page.',
+    warnCompact: 'This page has long text - mishna and commentary were auto-fitted to the page.',
     madeWith: 'Generated with the Mishna Poster Generator',
     fontFrank: 'Frank Ruhl Libre (classic)',
     fontDavid: 'David Libre (traditional)',
@@ -111,7 +115,7 @@ export const STRINGS = {
 
   he: {
     appTitle: 'מחולל כרזות משנה יומית',
-    appSubtitle: 'כרזות משנה ללימוד יומי - גודל Letter, משנה אחת בכל עמוד',
+    appSubtitle: 'כרזות משנה ללימוד יומי - משנה אחת בכל עמוד',
     poweredBy: 'טקסטים מתוך ספריא',
     langToggle: 'English',
     step1: 'לוח זמנים',
@@ -147,6 +151,10 @@ export const STRINGS = {
     template: 'תבנית',
     surprise: 'הפתע אותי',
     posterFont: 'גופן הכרזה',
+    commentaryFont: 'גופן הפירוש',
+    pageSize: 'גודל העמוד',
+    pageSizeLetter: 'מכתב (8.5 × 11 אינץ׳)',
+    pageSizeLegal: 'משפטי (8.5 × 14 אינץ׳)',
     accentColor: 'צבע הדגשה',
     institution: 'שם המוסד / לוגו הארגון',
     institutionPh: 'למשל: בית כנסת קהילתי',
@@ -195,7 +203,7 @@ export const STRINGS = {
     errNoText: 'לא נמצא טקסט עבור {ref}.',
     retry: 'נסה שוב',
     warnWrap: 'הלוח ממשיך למסכת הבאה.',
-    warnCompact: 'משנה ארוכה - הטקסט הוקטן אוטומטית כדי להתאים לעמוד.',
+    warnCompact: 'עמוד ארוך - המשנה והפירוש הותאמו אוטומטית לעמוד.',
     madeWith: 'נוצר במחולל כרזות המשנה',
     fontFrank: 'פרנק רוהל (קלאסי)',
     fontDavid: 'דוד ליברה (מסורתי)',

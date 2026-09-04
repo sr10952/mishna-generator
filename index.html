@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Mishna Poster Generator · מחולל כרזות משנה</title>
-  <meta name="description" content="Generate printable Letter-size daily Mishnah learning posters from open-source Sefaria texts. One mishna per page, Hebrew with nikud, Bartenura commentary, custom templates." />
+  <meta name="description" content="Generate printable Letter or Legal daily Mishnah learning posters from open-source Sefaria texts. One mishna per page, Hebrew with nikud, Bartenura commentary, custom templates." />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231e3a5f'/%3E%3Ctext x='32' y='45' font-size='36' text-anchor='middle' fill='%23fca311' font-family='serif'%3E%D7%9E%3C/text%3E%3C/svg%3E" />
   <link rel="stylesheet" href="assets/css/fonts.css" />
   <link rel="stylesheet" href="assets/css/main.css" />
@@ -24,7 +24,7 @@
         <div class="brand-mark" aria-hidden="true">מ</div>
         <div class="brand-text">
           <h1 data-i18n="appTitle">Mishna Poster Generator</h1>
-          <p data-i18n="appSubtitle">Daily Mishnah learning posters — Letter size, one mishna per page</p>
+          <p data-i18n="appSubtitle">Daily Mishnah learning posters — one mishna per page</p>
         </div>
       </div>
       <div class="topbar-actions">
@@ -176,6 +176,20 @@
             <select id="fontSel"></select>
           </label>
           <label class="field">
+            <span class="field-label" data-i18n="commentaryFont">Commentary font</span>
+            <select id="commentaryFontSel"></select>
+          </label>
+        </div>
+
+        <div class="grid-2">
+          <label class="field">
+            <span class="field-label" data-i18n="pageSize">Page size</span>
+            <select id="pageSizeSel">
+              <option value="letter" data-i18n="pageSizeLetter">Letter (8.5 × 11 in)</option>
+              <option value="legal" data-i18n="pageSizeLegal">Legal (8.5 × 14 in)</option>
+            </select>
+          </label>
+          <label class="field">
             <span class="field-label" data-i18n="accentColor">Accent color</span>
             <input type="color" id="accentColor" value="#8a6d3b" class="color-input" />
           </label>
@@ -276,7 +290,7 @@
           <div class="preview-empty" id="previewEmpty">
             <div class="preview-empty-inner">
               <div class="pe-mark">מ</div>
-              <p data-i18n="appSubtitle">Daily Mishnah learning posters — Letter size, one mishna per page</p>
+              <p data-i18n="appSubtitle">Daily Mishnah learning posters — one mishna per page</p>
             </div>
           </div>
         </div>

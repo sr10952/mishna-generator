@@ -19,7 +19,7 @@
  *
  * Usage:  npm run test:e2e     (requires `npm install` first)
  */
-import { readFileSync, mkdirSync, rmSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
@@ -739,6 +739,174 @@ try {
     assert.equal(output.infoBits.some((bit) => /סוכות|Sukkot/.test(bit)), false, 'holiday reading is not rendered as a parasha');
   });
 
+  await scenario('project memorial dedication renders by default and confirms on removal', async () => {
+    await page.setViewport({ width: 1280, height: 900 });
+    await page.goto(BASE, { waitUntil: 'networkidle0' });
+    await evalJS(page, () => localStorage.clear());
+    await page.reload({ waitUntil: 'networkidle0' });
+    await setStartDate(page, '2026-09-03');
+    await evalJS(page, () => { const c = document.getElementById('count'); c.value = '2'; c.dispatchEvent(new Event('change', { bubbles: true })); });
+    await clickBuild(page);
+    // On by default, present on the poster, and Latin-free.
+    const ded = await $eval(page, '#renderStage .poster-page .pg-project-dedication', (e) => e.textContent);
+    assert.match(ded, /אסתר בילא/);
+    assert.equal(/[A-Za-z]/.test(ded), false, 'dedication must contain no Latin characters');
+    assert.equal(await $eval(page, '#showProjectDedicationInfo', (e) => e.checked), true);
+
+    // Unchecking asks for confirmation; cancelling keeps it on.
+    await evalJS(page, () => { const t = document.getElementById('showProjectDedicationInfo'); t.checked = false; t.dispatchEvent(new Event('change', { bubbles: true })); });
+    await waitFor(page, () => evalJS(page, () => !document.getElementById('confirmBackdrop').hidden));
+    await evalJS(page, () => document.getElementById('confirmCancel').click());
+    await sleep(150);
+    assert.equal(await $eval(page, '#showProjectDedicationInfo', (e) => e.checked), true, 'cancel keeps the dedication');
+    assert.equal(await evalJS(page, () => !!document.querySelector('#renderStage .pg-project-dedication')), true);
+
+    // Confirming removes it from every poster.
+    await evalJS(page, () => { const t = document.getElementById('showProjectDedicationInfo'); t.checked = false; t.dispatchEvent(new Event('change', { bubbles: true })); });
+    await waitFor(page, () => evalJS(page, () => !document.getElementById('confirmBackdrop').hidden));
+    await evalJS(page, () => document.getElementById('confirmOk').click());
+    await waitFor(page, () => evalJS(page, () => !document.querySelector('#renderStage .pg-project-dedication')));
+    assert.equal(await $eval(page, '#showProjectDedicationInfo', (e) => e.checked), false);
+  });
+
+  await scenario('profiles: save, load, rename, and delete a named profile', async () => {
+    await page.goto(BASE, { waitUntil: 'networkidle0' });
+    await evalJS(page, () => localStorage.clear());
+    await page.reload({ waitUntil: 'networkidle0' });
+
+    // Save the current configuration under a name.
+    await evalJS(page, () => { const e = document.getElementById('institution'); e.value = 'Congregation Alpha'; e.dispatchEvent(new Event('input', { bubbles: true })); });
+    await evalJS(page, () => { document.getElementById('profileNameInput').value = 'Alpha Preset'; document.getElementById('profileSaveBtn').click(); });
+    await waitFor(page, () => $eval(page, '#profileSelect', (e) => e.options.length === 1 && e.options[0].textContent === 'Alpha Preset'));
+    assert.match(await $eval(page, '#profileCountLabel', (e) => e.textContent), /1 of 20/);
+    assert.equal(await evalJS(page, () => !!localStorage.getItem('mishna-poster-profiles-v1')), true);
+
+    // Change a value, then load the profile to restore it.
+    await evalJS(page, () => { const e = document.getElementById('institution'); e.value = 'Something Else'; e.dispatchEvent(new Event('input', { bubbles: true })); });
+    await evalJS(page, () => document.getElementById('profileLoadBtn').click());
+    await waitFor(page, () => $eval(page, '#institution', (e) => e.value === 'Congregation Alpha'));
+
+    // Rename via the accessible prompt dialog.
+    await evalJS(page, () => document.getElementById('profileRenameBtn').click());
+    await waitFor(page, () => evalJS(page, () => !document.getElementById('promptBackdrop').hidden));
+    await evalJS(page, () => { document.getElementById('promptInput').value = 'Alpha Renamed'; document.getElementById('promptOk').click(); });
+    await waitFor(page, () => $eval(page, '#profileSelect', (e) => e.options[0].textContent === 'Alpha Renamed'));
+
+    // Delete requires a confirmation.
+    await evalJS(page, () => document.getElementById('profileDeleteBtn').click());
+    await waitFor(page, () => evalJS(page, () => !document.getElementById('confirmBackdrop').hidden));
+    await evalJS(page, () => document.getElementById('confirmOk').click());
+    await waitFor(page, () => $eval(page, '#profileCountLabel', (e) => /0 of 20/.test(e.textContent)));
+    assert.equal(await $eval(page, '#profileSelect', (e) => e.disabled), true);
+  });
+
+  await scenario('backup: export downloads image-free JSON; import restores it', async () => {
+    await page.goto(BASE, { waitUntil: 'networkidle0' });
+    await evalJS(page, () => localStorage.clear());
+    await page.reload({ waitUntil: 'networkidle0' });
+
+    // Build a distinctive configuration + a saved profile, then export.
+    await evalJS(page, () => { const e = document.getElementById('footerNote'); e.value = 'Backup Footer'; e.dispatchEvent(new Event('input', { bubbles: true })); });
+    await evalJS(page, () => { document.getElementById('profileNameInput').value = 'Backed Up'; document.getElementById('profileSaveBtn').click(); });
+    await waitFor(page, () => $eval(page, '#profileSelect', (e) => e.options.length === 1));
+    // Capture the exported blob in-page (headless disk downloads for blob: URLs
+    // are unreliable; this still drives the real export button + Blob pipeline).
+    const exported = await evalJS(page, async () => {
+      let captured = null; let name = null;
+      const origCreate = URL.createObjectURL;
+      URL.createObjectURL = (blob) => { captured = blob; return 'blob:captured'; };
+      const origClick = HTMLAnchorElement.prototype.click;
+      HTMLAnchorElement.prototype.click = function () { if (this.download) name = this.download; };
+      try {
+        document.getElementById('backupExportBtn').click();
+        const text = captured ? await captured.text() : null;
+        return { text, name };
+      } finally {
+        URL.createObjectURL = origCreate;
+        HTMLAnchorElement.prototype.click = origClick;
+      }
+    });
+    assert.match(exported.name, /mishna-poster-backup-.*\.json$/);
+    const doc = JSON.parse(exported.text);
+    assert.equal(doc.app, 'mishna-poster-generator');
+    assert.equal(doc.settings.design.footerNote, 'Backup Footer');
+    assert.equal(doc.settings.design.logoDataUrl, null, 'export must not carry images');
+    assert.equal(doc.profiles.length, 1);
+
+    // Wipe everything, then import the file through the picker.
+    await evalJS(page, () => localStorage.clear());
+    await page.reload({ waitUntil: 'networkidle0' });
+    assert.equal(await $eval(page, '#footerNote', (e) => e.value), '');
+    const importDoc = JSON.stringify(doc);
+    const tmp = path.join(DOWNLOADS, 'import-backup.json');
+    writeFileSync(tmp, importDoc);
+    const input = await page.$('#backupImportFile');
+    await input.uploadFile(tmp);
+    await waitFor(page, () => evalJS(page, () => !document.getElementById('confirmBackdrop').hidden));
+    await evalJS(page, () => document.getElementById('confirmOk').click());
+    await waitFor(page, () => $eval(page, '#footerNote', (e) => e.value === 'Backup Footer'));
+    assert.match(await $eval(page, '#profileSelect', (e) => e.options[0].textContent), /Backed Up/);
+    rmSync(tmp);
+  });
+
+  await scenario('import rejects a non-backup JSON file with an error', async () => {
+    await page.goto(BASE, { waitUntil: 'networkidle0' });
+    await evalJS(page, () => localStorage.clear());
+    await page.reload({ waitUntil: 'networkidle0' });
+    const bad = path.join(DOWNLOADS, 'not-a-backup.json');
+    writeFileSync(bad, JSON.stringify({ hello: 'world' }));
+    const input = await page.$('#backupImportFile');
+    await input.uploadFile(bad);
+    await waitFor(page, () => $eval(page, '#profileStatus', (e) => e.textContent.length > 0 && e.className.includes('error')));
+    // A non-backup object is a shape error; no confirmation dialog should appear.
+    assert.equal(await evalJS(page, () => document.getElementById('confirmBackdrop').hidden), true);
+    rmSync(bad);
+  });
+
+  await scenario('bundled content renders the example fully offline (Sefaria blocked)', async () => {
+    // Re-route ALL Sefaria requests to failure to prove independence from the API.
+    await page.goto(BASE, { waitUntil: 'networkidle0' });
+    await evalJS(page, () => localStorage.clear());
+    await page.reload({ waitUntil: 'networkidle0' });
+    const offlineIntercept = (req) => {
+      if (req.url().includes('sefaria.org')) { req.respond({ status: 503, contentType: 'application/json', body: '{}' }); return true; }
+      return intercept(req);
+    };
+    page.removeAllListeners('request');
+    page.on('request', (req) => { if (!offlineIntercept(req)) req.continue(); });
+    await setStartDate(page, '2026-09-03');
+    await evalJS(page, () => { const c = document.getElementById('count'); c.value = '4'; c.dispatchEvent(new Event('change', { bubbles: true })); });
+    await clickBuild(page);
+    const refs = await evalJS(page, () => [...document.querySelectorAll('#renderStage .poster-page')].map((p) => p.dataset.ref));
+    assert.deepEqual(refs, ['Mishnah Bekhorot 3:2', 'Mishnah Bekhorot 3:3', 'Mishnah Bekhorot 3:4', 'Mishnah Bekhorot 4:1'],
+      'bundled offline content must render the built-in example with the API unavailable');
+    const text = await $eval(page, '#renderStage .poster-page .pg-text', (e) => e.textContent);
+    assert.match(text, /רַבָּן שִׁמְעוֹן בֶּן גַּמְלִיאֵל/);
+    // Restore the normal fixture interceptor for any later scenarios.
+    page.removeAllListeners('request');
+    page.on('request', (req) => { if (!intercept(req)) req.continue(); });
+  });
+
+  await scenario('PWA: manifest, icons, and a registerable service worker are served', async () => {
+    await page.goto(BASE, { waitUntil: 'networkidle0' });
+    const manifestHref = await $eval(page, 'link[rel="manifest"]', (e) => e.getAttribute('href'));
+    assert.equal(manifestHref, 'manifest.webmanifest');
+    const manifest = await evalJS(page, async () => {
+      const res = await fetch('manifest.webmanifest');
+      return res.ok ? res.json() : null;
+    });
+    assert.ok(manifest, 'manifest must be fetchable');
+    assert.equal(manifest.display, 'standalone');
+    assert.ok(manifest.icons.length >= 2);
+    const swOk = await evalJS(page, async () => {
+      const res = await fetch('sw.js');
+      return res.ok && (await res.text()).includes('addEventListener');
+    });
+    assert.equal(swOk, true, 'sw.js must be served and look like a service worker');
+    const iconOk = await evalJS(page, async () => (await fetch('assets/icons/icon-192.png')).ok);
+    assert.equal(iconOk, true);
+  });
+
   await scenario('responsive: 375px phone - no overflow, mobile tabs work', async () => {
     await page.setViewport({ width: 375, height: 812, isMobile: true, hasTouch: true });
     await page.goto(BASE, { waitUntil: 'networkidle0' });
@@ -783,6 +951,21 @@ try {
 
   await scenario('graceful degradation when a text is unavailable (404)', async () => {
     await page.setViewport({ width: 1280, height: 900 });
+    // Disable the bundled offline store for this scenario so text resolution
+    // falls back to the (mocked) Sefaria API, whose fixtures cover only the 4
+    // Bekhorot example refs. This exercises the soft-failure path for the 5th
+    // and 6th days. (The whole Mishnah is otherwise bundled, so a real user
+    // never hits this - hence the deliberate store outage here.)
+    const blockStore = await page.evaluateOnNewDocument(() => {
+      const realFetch = window.fetch.bind(window);
+      window.fetch = (input, init) => {
+        const u = typeof input === 'string' ? input : (input && input.url) || '';
+        if (u.includes('/content/mishnah.json')) {
+          return Promise.resolve(new Response('{}', { status: 404, headers: { 'Content-Type': 'application/json' } }));
+        }
+        return realFetch(input, init);
+      };
+    });
     await page.goto(BASE, { waitUntil: 'networkidle0' });
     await evalJS(page, () => localStorage.removeItem('mishna-poster-settings-v1'));
     await page.reload({ waitUntil: 'networkidle0' });
@@ -799,6 +982,10 @@ try {
     assert.equal(pages, 4, 'the 4 available pages still render');
     const errMarks = await $eval(page, '#scheduleTable', (e) => e.querySelectorAll('.err-cell').length);
     assert.equal(errMarks, 2, 'failed rows are marked');
+    // Restore the bundled store for any later scenarios.
+    if (typeof blockStore === 'object' && blockStore && blockStore.identifier) {
+      try { await page.removeScriptToEvaluateOnNewDocument(blockStore.identifier); } catch { /* noop */ }
+    }
   });
 
   await scenario('schedule table + hebrew dates across the week boundary', async () => {

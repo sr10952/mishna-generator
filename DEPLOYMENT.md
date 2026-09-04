@@ -124,10 +124,28 @@ git add -A && git commit -m "..." && git push
 - **Cloudflare Pages (Option A)** and **GitHub Pages (Option D)** rebuild automatically.
 - **Option B** re-run the `wrangler pages deploy` command.
 
+## Offline / USB use (PWA)
+
+The app is an installable Progressive Web App and works **100% offline** once loaded:
+
+- **Install it** — open the site in Chrome/Edge/Safari and choose *Install* / *Add to Home
+  Screen*. A service worker (`sw.js`) precaches the whole app shell, so it keeps working
+  with no connection. The bundled text store (`assets/content/`) renders the built-in
+  example offline; other tractates need a one-time online fetch (or run
+  `node tools/build-content.mjs` to bundle more before deploying).
+- **Copy to a USB stick** — copy the entire repo folder. Because ES modules and the
+  service worker need `http(s)://`, don't open `index.html` directly; instead run a tiny
+  local server from the folder, e.g. `python3 -m http.server 8930` (or `npm start`), then
+  open <http://localhost:8930>. Everything else is self-contained — fonts, libraries, and
+  the bundled texts all ship in the folder.
+
 ## Troubleshooting
 
-- **Blank page on `file://`** — ES modules require http(s); use one of the hosts above
-  or `npm start` locally.
+- **Blank page on `file://`** — ES modules and the service worker require http(s); use one
+  of the hosts above or a local server (`npm start` / `python3 -m http.server`).
+- **A code/content change didn't show up** — the service worker serves a cached shell.
+  Hard-reload, or bump the cache by running `node tools/build-sw.mjs` (it re-hashes the
+  precache list, which invalidates the old cache on next load).
 - **"Failed to fetch" when building a poster** — Sefaria's API
   (`https://www.sefaria.org`) must be reachable from the visitor's browser; the host
   itself never calls it, so no server-side config is ever needed.

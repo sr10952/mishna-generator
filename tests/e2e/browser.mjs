@@ -66,6 +66,7 @@ export function startStaticServer(root, port = 8930) {
     '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
     '.woff2': 'font/woff2', '.woff': 'font/woff', '.png': 'image/png',
     '.jpg': 'image/jpeg', '.json': 'application/json', '.svg': 'image/svg+xml',
+    '.webmanifest': 'application/manifest+json',
   };
   const server = http.createServer((req, res) => {
     try {

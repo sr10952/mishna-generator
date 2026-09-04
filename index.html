@@ -6,6 +6,8 @@
   <title>Mishna Poster Generator · מחולל כרזות משנה</title>
   <meta name="description" content="Generate printable Letter, Legal, Tabloid, or custom-size daily Mishnah learning posters from open-source Sefaria texts. One mishna per page, Hebrew with nikud, Bartenura commentary, custom templates." />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231e3a5f'/%3E%3Ctext x='32' y='45' font-size='36' text-anchor='middle' fill='%23fca311' font-family='serif'%3E%D7%9E%3C/text%3E%3C/svg%3E" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#1e3a5f" />
   <link rel="stylesheet" href="assets/css/fonts.css" />
   <link rel="stylesheet" href="assets/css/main.css" />
   <link rel="stylesheet" href="assets/css/poster.css" />
@@ -157,7 +159,9 @@
           <label class="check chip"><input type="checkbox" id="showParshaInfo" checked /><span data-i18n="colParsha">Parasha</span></label>
           <label class="check chip"><input type="checkbox" id="showDayCountInfo" checked /><span data-i18n="dayCount">Day counter</span></label>
           <label class="check chip"><input type="checkbox" id="showAttributionInfo" checked /><span data-i18n="attribution">Sefaria attribution</span></label>
+          <label class="check chip"><input type="checkbox" id="showProjectDedicationInfo" checked /><span data-i18n="projectDedication">Project dedication line</span></label>
         </div>
+        <p class="hint" data-i18n="projectDedicationHint">Shows the memorial dedication at the bottom of every poster.</p>
         <label class="field" id="dailyMishnaBadgeTextField">
           <span class="field-label" data-i18n="dailyMishnaBadgeText">Daily Mishna box text</span>
           <input type="text" id="dailyMishnaBadgeText" data-i18n-ph="dailyMishnaBadgeTextPh" placeholder="Leave blank for “Daily Mishnah”" maxlength="60" />
@@ -282,6 +286,42 @@
         </label>
       </div>
 
+      <!-- 3b. profiles & backup -->
+      <div class="card" id="profilesCard">
+        <h2 class="card-title"><span class="step-num" aria-hidden="true">★</span><span data-i18n="profilesTitle">Saved profiles &amp; backup</span></h2>
+        <p class="hint" data-i18n="profilesHint">Save the whole configuration under a name, then reload it any time.</p>
+
+        <div class="field">
+          <label class="field-label" for="profileNameInput" data-i18n="profileNameLabel">Profile name</label>
+          <div class="profile-save-row">
+            <input type="text" id="profileNameInput" maxlength="60" data-i18n-ph="profileNamePh" placeholder="Profile name" autocomplete="off" />
+            <button type="button" class="btn primary small" id="profileSaveBtn" data-i18n="profileSave">Save current settings</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="profileSelect" data-i18n="profileSelectLabel">Saved profiles</label>
+          <select id="profileSelect" aria-describedby="profileCountLabel"></select>
+          <div class="profile-actions">
+            <button type="button" class="btn small" id="profileLoadBtn" data-i18n="profileLoad">Load</button>
+            <button type="button" class="btn ghost small" id="profileRenameBtn" data-i18n="profileRename">Rename</button>
+            <button type="button" class="btn ghost small danger" id="profileDeleteBtn" data-i18n="profileDelete">Delete</button>
+          </div>
+          <p class="hint" id="profileCountLabel" role="status" aria-live="polite"></p>
+        </div>
+
+        <div class="field">
+          <span class="field-label" data-i18n="backupExport">Export backup (JSON)</span>
+          <div class="profile-actions">
+            <button type="button" class="btn small" id="backupExportBtn" data-i18n="backupExport">Export backup (JSON)</button>
+            <button type="button" class="btn small" id="backupImportBtn" data-i18n="backupImport">Import backup (JSON)</button>
+            <input type="file" id="backupImportFile" accept="application/json,.json" hidden />
+          </div>
+          <p class="hint" data-i18n="backupHint">Backups are plain JSON with your settings and profiles — no images, no tracking.</p>
+        </div>
+        <p class="status-line" id="profileStatus" role="status" aria-live="polite"></p>
+      </div>
+
       <!-- 4. generate -->
       <div class="card" id="generateCard">
         <h2 class="card-title"><span class="step-num">4</span><span data-i18n="step4">Generate</span></h2>
@@ -351,6 +391,29 @@
   <footer class="app-footer">
     <p><span data-i18n="madeWith">Generated with the Mishna Poster Generator</span> · <a href="https://developers.sefaria.org" target="_blank" rel="noopener">Sefaria.org</a> · CC BY</p>
   </footer>
+
+  <!-- Accessible confirmation dialog for destructive actions -->
+  <div class="modal-backdrop" id="confirmBackdrop" hidden>
+    <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="confirmText" id="confirmModal">
+      <p id="confirmText" class="confirm-text"></p>
+      <div class="confirm-actions">
+        <button type="button" class="btn ghost" id="confirmCancel"></button>
+        <button type="button" class="btn primary" id="confirmOk"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Accessible text-prompt dialog (e.g. rename) -->
+  <div class="modal-backdrop" id="promptBackdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="promptText" id="promptModal">
+      <label id="promptText" class="confirm-text" for="promptInput"></label>
+      <input type="text" id="promptInput" maxlength="60" autocomplete="off" />
+      <div class="confirm-actions">
+        <button type="button" class="btn ghost" id="promptCancel"></button>
+        <button type="button" class="btn primary" id="promptOk"></button>
+      </div>
+    </div>
+  </div>
 
   <div class="mobile-tabs" id="mobileTabs">
     <button type="button" class="mobile-tab active" data-tab="settings" data-i18n="step1">Settings</button>

@@ -222,13 +222,25 @@
   padding-top: 10px;
   border-top: 1.5px solid var(--pg-foot-rule, var(--pg-frame));
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: baseline;
-  gap: 16px;
+  gap: 6px 16px;
   font-size: 12.5px;
   color: var(--pg-muted);
 }
 .poster-page .pg-foot-note { display: flex; gap: 12px; flex-wrap: wrap; }
+/* Project memorial dedication: full-width line under the footer, centered,
+   pure Hebrew so native-Hebrew posters stay Latin-free. */
+.poster-page .pg-project-dedication {
+  flex-basis: 100%;
+  width: 100%;
+  text-align: center;
+  font-size: 13px;
+  color: var(--pg-accent, var(--pg-muted));
+  opacity: 0.92;
+  direction: rtl;
+}
 
 /* English posters: slightly different typography */
 .poster-page.poster-en .pg-text { font-weight: 400; line-height: 1.65; }

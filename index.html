@@ -153,6 +153,7 @@
         <div class="comm-toggles">
           <label class="check chip"><input type="checkbox" id="showDailyMishnaBadge" checked /><span data-i18n="showDailyMishnaBadge">Show Daily Mishna box</span></label>
           <label class="check chip"><input type="checkbox" id="showDateInfo" checked /><span data-i18n="colHebDate">Hebrew date</span></label>
+          <label class="check chip"><input type="checkbox" id="showYomTovName" /><span data-i18n="showYomTovName">Show Yom Tov / holiday name when available</span></label>
           <label class="check chip"><input type="checkbox" id="showParshaInfo" checked /><span data-i18n="colParsha">Parasha</span></label>
           <label class="check chip"><input type="checkbox" id="showDayCountInfo" checked /><span data-i18n="dayCount">Day counter</span></label>
           <label class="check chip"><input type="checkbox" id="showAttributionInfo" checked /><span data-i18n="attribution">Sefaria attribution</span></label>
@@ -160,6 +161,33 @@
         <label class="field" id="dailyMishnaBadgeTextField">
           <span class="field-label" data-i18n="dailyMishnaBadgeText">Daily Mishna box text</span>
           <input type="text" id="dailyMishnaBadgeText" data-i18n-ph="dailyMishnaBadgeTextPh" placeholder="Leave blank for “Daily Mishnah”" maxlength="60" />
+        </label>
+        <div class="grid-2">
+          <label class="field">
+            <span class="field-label" data-i18n="weekdayDisplay">Weekday display</span>
+            <select id="weekdayDisplaySel">
+              <option value="auto" data-i18n="weekdayDisplayAuto">Match poster language</option>
+              <option value="he" data-i18n="weekdayDisplayHebrew">Hebrew</option>
+              <option value="yi" data-i18n="weekdayDisplayYiddish">Yiddish</option>
+              <option value="en" data-i18n="weekdayDisplayEnglish">English</option>
+              <option value="custom" data-i18n="weekdayDisplayCustom">Custom names</option>
+              <option value="none" data-i18n="weekdayDisplayNone">Hide weekday</option>
+            </select>
+          </label>
+          <label class="field" id="yomTovDisplayField" hidden>
+            <span class="field-label" data-i18n="yomTovDisplay">Yom Tov name style</span>
+            <select id="yomTovDisplaySel">
+              <option value="auto" data-i18n="yomTovDisplayAuto">Match weekday / poster style</option>
+              <option value="he" data-i18n="weekdayDisplayHebrew">Hebrew</option>
+              <option value="yi" data-i18n="weekdayDisplayYiddish">Yiddish</option>
+              <option value="en" data-i18n="weekdayDisplayEnglish">English</option>
+            </select>
+          </label>
+        </div>
+        <label class="field" id="customWeekdayNamesField" hidden>
+          <span class="field-label" data-i18n="customWeekdayNames">Custom weekday names</span>
+          <input type="text" id="customWeekdayNames" dir="auto" data-i18n-ph="customWeekdayNamesPh" placeholder="Sun, Mon, Tue, Wed, Thu, Fri, Sat" maxlength="300" />
+          <span class="hint" data-i18n="customWeekdayNamesHint">Enter seven comma-separated names, Sunday through Shabbos.</span>
         </label>
       </div>
 

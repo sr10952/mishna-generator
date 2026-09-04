@@ -119,8 +119,23 @@ export function formatGregorianDate(date, lang = 'en') {
   return new Intl.DateTimeFormat(loc, { day: 'numeric', month: 'short', year: 'numeric' }).format(date);
 }
 
-/** Weekday name, e.g. "יום חמישי" / "Thursday". */
+/**
+ * Traditional Yiddish weekday names, ordered for Date#getDay (Sunday first).
+ * Keep the spelling and the ASCII quote in שב"ק intentional: these are the
+ * familiar forms used on many Yiddish calendars and handouts.
+ */
+export const YIDDISH_WEEKDAYS = Object.freeze([
+  'זונטאג', 'מאנטאג', 'דינסטאג', 'מיטוואך', 'דאנערשטאג', 'פרייטאג', 'שב"ק',
+]);
+
+/** Format a weekday in the Yiddish forms used by the poster date line. */
+export function formatYiddishWeekday(date) {
+  return YIDDISH_WEEKDAYS[date.getDay()] || '';
+}
+
+/** Weekday name, e.g. "יום חמישי" / "Thursday" / "דאנערשטאג". */
 export function formatWeekday(date, lang = 'en') {
+  if (lang === 'yi' || lang === 'yiddish') return formatYiddishWeekday(date);
   return new Intl.DateTimeFormat(lang === 'he' ? 'he' : 'en-US', { weekday: 'long' }).format(date);
 }
 
@@ -163,6 +178,119 @@ export function isYomTov(date, diaspora = true) {
   if (h.month === 10 && h.day === 6) return true;                     // Shavuot
   if (h.month === 10 && h.day === 7 && diaspora) return true;         // Shavuot day 2 (diaspora)
   return false;
+}
+
+/* ---------------------------------------------------------------------------
+ * Jewish holiday names for the poster date line
+ * ------------------------------------------------------------------------- */
+
+function holiday(kind, day, nameHe, nameYi, nameEn) {
+  return { kind, day, nameHe, nameYi, nameEn };
+}
+
+/**
+ * Return the named Jewish holiday/observance for a date, or null on ordinary
+ * days. In addition to major Yom Tov days, this intentionally includes Chol
+ * HaMoed: it is a normal learning day and therefore particularly useful on a
+ * daily-learning poster. The date math is local and deterministic rather than
+ * relying on a weekly Torah-reading API response to happen to name the day.
+ *
+ * `diaspora` changes the second-day and Chol HaMoed boundaries exactly as it
+ * does in isYomTov().
+ */
+export function getYomTovInfo(date, { diaspora = true } = {}) {
+  const h = hebrewParts(date);
+  if (!h.month || !h.day) return null;
+  const inDiaspora = diaspora !== false;
+
+  if (h.month === 1) { // Tishri
+    if (h.day === 1 || h.day === 2) return holiday('festival', h.day, 'ראש השנה', 'ראש השנה', 'Rosh Hashanah');
+    if (h.day === 10) return holiday('observance', null, 'יום הכיפורים', 'יום כיפור', 'Yom Kippur');
+    if (h.day === 15) return holiday('festival', 1, 'סוכות', 'סוכות', 'Sukkot');
+    if (h.day === 16) {
+      return inDiaspora
+        ? holiday('festival', 2, 'סוכות', 'סוכות', 'Sukkot')
+        : holiday('chol-hamoed', 1, 'סוכות', 'סוכות', 'Sukkot');
+    }
+    if (h.day >= 17 && h.day <= 21) {
+      return holiday('chol-hamoed', h.day - (inDiaspora ? 16 : 15), 'סוכות', 'סוכות', 'Sukkot');
+    }
+    if (h.day === 22) return holiday('observance', null, 'שמיני עצרת', 'שמיני עצרת', 'Shemini Atzeret');
+    if (h.day === 23 && inDiaspora) return holiday('observance', null, 'שמחת תורה', 'שמחת תורה', 'Simchat Torah');
+  }
+
+  if (h.month === 8) { // Nisan / Pesach
+    if (h.day === 15) return holiday('festival', 1, 'פסח', 'פסח', 'Passover');
+    if (h.day === 16) {
+      return inDiaspora
+        ? holiday('festival', 2, 'פסח', 'פסח', 'Passover')
+        : holiday('chol-hamoed', 1, 'פסח', 'פסח', 'Passover');
+    }
+    if (h.day >= (inDiaspora ? 17 : 16) && h.day <= 20) {
+      return holiday('chol-hamoed', h.day - (inDiaspora ? 16 : 15), 'פסח', 'פסח', 'Passover');
+    }
+    if (h.day === 21) return holiday('festival', 7, 'פסח', 'פסח', 'Passover');
+    if (h.day === 22 && inDiaspora) return holiday('festival', 8, 'פסח', 'פסח', 'Passover');
+  }
+
+  if (h.month === 10) { // Sivan / Shavuot
+    if (h.day === 6) return holiday('festival', 1, 'שבועות', 'שבועות', 'Shavuot');
+    if (h.day === 7 && inDiaspora) return holiday('festival', 2, 'שבועות', 'שבועות', 'Shavuot');
+  }
+
+  // Common named days that do not alter the learning schedule, but are useful
+  // context when a poster lands on them.
+  if (h.month === 7 && h.day === 14) return holiday('observance', null, 'פורים', 'פורים', 'Purim');
+  if (h.month === 7 && h.day === 15) return holiday('observance', null, 'שושן פורים', 'שושן פורים', 'Shushan Purim');
+  if (h.month === 5 && h.day === 15) return holiday('observance', null, 'ט״ו בשבט', 'ט״ו בשבט', 'Tu BiShvat');
+  if (h.month === 9 && h.day === 18) return holiday('observance', null, 'ל״ג בעומר', 'ל״ג בעומר', 'Lag BaOmer');
+  if (h.month === 12 && h.day === 9) return holiday('observance', null, 'תשעה באב', 'תשעה באב', "Tisha B'Av");
+
+  // Chanukah starts on 25 Kislev and may end on 2 or 3 Tevet. Looking back at
+  // most eight local dates handles both Kislev lengths without hard-coding a
+  // particular Hebrew year.
+  if ((h.month === 3 && h.day >= 25) || (h.month === 4 && h.day <= 3)) {
+    const probe = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12);
+    for (let daysBack = 0; daysBack < 8; daysBack++) {
+      const p = hebrewParts(probe);
+      if (p.month === 3 && p.day === 25) return holiday('observance', null, 'חנוכה', 'חנוכה', 'Hanukkah');
+      probe.setDate(probe.getDate() - 1);
+    }
+  }
+
+  return null;
+}
+
+const ROMAN_ORDINALS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
+
+/**
+ * Format a precomputed holiday record for the poster. The Yiddish convention
+ * deliberately puts the day first ("א׳ דראש השנה", "ב׳ חוה״מ סוכות"); Hebrew
+ * and English use their customary word order.
+ */
+export function formatYomTovInfo(info, { lang = 'he' } = {}) {
+  if (!info) return '';
+  const style = lang === 'yiddish' ? 'yi' : lang;
+
+  if (info.kind === 'festival') {
+    if (style === 'yi') return `${gematria(info.day)} ד${info.nameYi}`;
+    if (style === 'en') return `${info.nameEn} ${ROMAN_ORDINALS[info.day - 1] || info.day}`;
+    return `${info.nameHe} ${gematria(info.day)}`;
+  }
+  if (info.kind === 'chol-hamoed') {
+    if (style === 'yi') return `${gematria(info.day)} חוה״מ ${info.nameYi}`;
+    if (style === 'en') return `Chol HaMoed ${info.nameEn} ${ROMAN_ORDINALS[info.day - 1] || info.day}`;
+    return `חול המועד ${info.nameHe} ${gematria(info.day)}`;
+  }
+  return style === 'en' ? info.nameEn : (style === 'yi' ? info.nameYi : info.nameHe);
+}
+
+/**
+ * Format a date-aware holiday name for the poster. Returns an empty string
+ * when there is no named holiday for the selected date.
+ */
+export function formatYomTovName(date, { diaspora = true, lang = 'he' } = {}) {
+  return formatYomTovInfo(getYomTovInfo(date, { diaspora }), { lang });
 }
 
 /** The Saturday of the week the date belongs to (used to cache the weekly parasha). */

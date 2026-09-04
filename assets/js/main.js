@@ -6,7 +6,7 @@
 import { setLang, getLang, t } from './i18n.js';
 import { MISHNAH, SEDARIM, findMasechet, COMMENTARIES, ENGLISH_VERSIONS, HEBREW_VERSIONS } from './mishnah-index.js';
 import { buildSchedule, validateSettings, MAX_MISHNAS, totalMishnas } from './schedule.js';
-import { apiRef, commentaryRef, formatHebrewDate, formatGregorianDate, formatWeekday, parseISODate, isoDate, saturdayOf, gematria, masechetHeName, containsLatinLetters } from './hebrew.js';
+import { apiRef, commentaryRef, formatHebrewDate, formatGregorianDate, formatWeekday, parseISODate, isoDate, saturdayOf, gematria, masechetHeName, containsLatinLetters, getYomTovInfo } from './hebrew.js';
 import { getText, getCalendar, runPool, clearSefariaCache } from './sefaria.js';
 import { buildPosterPage, autofitPage, ensureFontsLoaded, TEMPLATES, FONTS, getPageSize, getPageSizeForElement, randomTemplate } from './poster.js';
 import { generatePdf, renderPagePng, savePdf, suggestedFilename, QUALITIES } from './pdf.js';
@@ -16,6 +16,8 @@ import { generatePdf, renderPagePng, savePdf, suggestedFilename, QUALITIES } fro
  * =========================================================================*/
 
 const LS_KEY = 'mishna-poster-settings-v1';
+const WEEKDAY_DISPLAY_STYLES = new Set(['auto', 'he', 'yi', 'en', 'custom', 'none']);
+const YOM_TOV_DISPLAY_STYLES = new Set(['auto', 'he', 'yi', 'en']);
 
 const DEFAULTS = {
   lang: 'en',
@@ -50,6 +52,11 @@ const DEFAULTS = {
     bgOverlay: 0.85,
     showDailyMishnaBadge: true,
     dailyMishnaBadgeText: '',
+    // "auto" keeps the historic date line; Yiddish/custom modes are opt-in.
+    weekdayDisplay: 'auto',
+    customWeekdayNames: '',
+    showYomTovName: false,
+    yomTovDisplay: 'auto',
     showDate: true,
     showParsha: true,
     showDayCount: true,
@@ -84,6 +91,10 @@ function loadSettings() {
     if (!s.design || !s.design.commentaryFont || !FONTS[merged.design.commentaryFont]) merged.design.commentaryFont = FONTS[merged.design.font] ? merged.design.font : 'frank';
     if (!FONTS[merged.design.font]) merged.design.font = 'frank';
     merged.design.pageSize = getPageSize(merged.design.pageSize).id;
+    if (!WEEKDAY_DISPLAY_STYLES.has(merged.design.weekdayDisplay)) merged.design.weekdayDisplay = 'auto';
+    if (!YOM_TOV_DISPLAY_STYLES.has(merged.design.yomTovDisplay)) merged.design.yomTovDisplay = 'auto';
+    if (typeof merged.design.customWeekdayNames !== 'string') merged.design.customWeekdayNames = '';
+    merged.design.showYomTovName = merged.design.showYomTovName === true;
     return merged;
   } catch {
     return structuredClone(DEFAULTS);
@@ -499,7 +510,9 @@ async function loadEntryData() {
     error: failures.find((f) => f.index === i) ? failures.find((f) => f.index === i).error : null,
   }));
 
-  // weekly parasha (cached per Saturday)
+  // Weekly parasha is cached per Saturday. Holiday context is calculated for
+  // every actual learning date: a weekly Torah-reading response cannot tell us
+  // whether an intervening weekday is, for example, Chol HaMoed.
   const satKeys = [...new Set(schedule.entries.map((e) => isoDate(saturdayOf(parseISODate(e.date)))))];
   const calTasks = satKeys.map((iso) => () => getCalendar(parseISODate(iso), { diaspora: settings.diaspora }));
   const calResults = await runPool(calTasks, {
@@ -509,8 +522,13 @@ async function loadEntryData() {
   const calBySat = new Map();
   satKeys.forEach((iso, i) => { if (calResults.results[i]) calBySat.set(iso, calResults.results[i]); });
   entryData.forEach((d, i) => {
-    const sat = isoDate(saturdayOf(parseISODate(schedule.entries[i].date)));
-    d.calendar = calBySat.get(sat) || null;
+    const entryDate = parseISODate(schedule.entries[i].date);
+    const sat = isoDate(saturdayOf(entryDate));
+    const weeklyCalendar = calBySat.get(sat) || null;
+    const yomTov = getYomTovInfo(entryDate, { diaspora: settings.diaspora });
+    d.calendar = (weeklyCalendar || yomTov)
+      ? { ...(weeklyCalendar || {}), yomTov }
+      : null;
   });
 
   const failed = failures.length;
@@ -544,7 +562,11 @@ function rebuildAllPages() {
       calendar: d.calendar,
       index: i + 1,
       total: schedule.entries.length,
-      settings: { text: settings.text, design: { ...settings.design, templateDef: templateDef() } },
+      settings: {
+        diaspora: settings.diaspora,
+        text: settings.text,
+        design: { ...settings.design, templateDef: templateDef() },
+      },
       lang: posterLang(),
     });
     stage.appendChild(page);
@@ -862,6 +884,30 @@ function wire() {
   });
   syncDailyMishnaBadgeTextVisibility();
 
+  $('weekdayDisplaySel').value = settings.design.weekdayDisplay || 'auto';
+  $('weekdayDisplaySel').addEventListener('change', (e) => {
+    settings.design.weekdayDisplay = WEEKDAY_DISPLAY_STYLES.has(e.target.value) ? e.target.value : 'auto';
+    syncDateDisplayControls();
+    onDesignSettingChange();
+  });
+  $('customWeekdayNames').value = settings.design.customWeekdayNames || '';
+  $('customWeekdayNames').addEventListener('input', (e) => {
+    settings.design.customWeekdayNames = e.target.value;
+    onDesignSettingChange();
+  });
+  $('showYomTovName').checked = settings.design.showYomTovName === true;
+  $('showYomTovName').addEventListener('change', (e) => {
+    settings.design.showYomTovName = e.target.checked;
+    syncDateDisplayControls();
+    onDesignSettingChange();
+  });
+  $('yomTovDisplaySel').value = settings.design.yomTovDisplay || 'auto';
+  $('yomTovDisplaySel').addEventListener('change', (e) => {
+    settings.design.yomTovDisplay = YOM_TOV_DISPLAY_STYLES.has(e.target.value) ? e.target.value : 'auto';
+    onDesignSettingChange();
+  });
+  syncDateDisplayControls();
+
   const infoToggles = [
     ['showDateInfo', 'showDate'],
     ['showParshaInfo', 'showParsha'],
@@ -955,6 +1001,14 @@ function syncTextLangVisibility() {
 function syncDailyMishnaBadgeTextVisibility() {
   const field = $('dailyMishnaBadgeTextField');
   if (field) field.hidden = settings.design.showDailyMishnaBadge === false;
+}
+
+/** Keep optional date-format controls out of the way until they are relevant. */
+function syncDateDisplayControls() {
+  const customField = $('customWeekdayNamesField');
+  if (customField) customField.hidden = settings.design.weekdayDisplay !== 'custom';
+  const yomTovField = $('yomTovDisplayField');
+  if (yomTovField) yomTovField.hidden = settings.design.showYomTovName !== true;
 }
 
 /* ===========================================================================

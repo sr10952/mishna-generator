@@ -529,6 +529,74 @@ try {
     assert.match(pdfText(printPdf), /\/MediaBox\s*\[0 0 612 1008\]/, 'Legal print PDF MediaBox');
   });
 
+  await scenario('Yiddish weekdays and optional date-aware Yom Tov labels are customizable', async () => {
+    await evalJS(page, () => {
+      const skip = document.getElementById('skipYomTov');
+      skip.checked = false;
+      skip.dispatchEvent(new Event('change', { bubbles: true }));
+      const weekday = document.getElementById('weekdayDisplaySel');
+      weekday.value = 'yi';
+      weekday.dispatchEvent(new Event('change', { bubbles: true }));
+      const holiday = document.getElementById('showYomTovName');
+      holiday.checked = true;
+      holiday.dispatchEvent(new Event('change', { bubbles: true }));
+      const style = document.getElementById('yomTovDisplaySel');
+      style.value = 'auto';
+      style.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await setStartDate(page, '2026-09-12'); // 1 Tishri / Rosh Hashanah
+    await clickBuild(page);
+    await waitFor(page, () => $eval(page, '#renderStage .pg-info', (e) => e.textContent.includes('א׳ דראש השנה')));
+    let dateInfo = await $eval(page, '#renderStage .pg-info', (e) => e.textContent);
+    assert.match(dateInfo, /שב"ק/);
+    assert.match(dateInfo, /א׳ דראש השנה/);
+    assert.equal(await $eval(page, '#yomTovDisplayField', (e) => e.hidden), false);
+
+    // A seven-name list gives institutions complete control over their own
+    // weekday vocabulary without changing the schedule itself.
+    await evalJS(page, () => {
+      const weekday = document.getElementById('weekdayDisplaySel');
+      weekday.value = 'custom';
+      weekday.dispatchEvent(new Event('change', { bubbles: true }));
+      const names = document.getElementById('customWeekdayNames');
+      names.value = 'ראשון מיוחד, שני מיוחד, שלישי מיוחד, רביעי מיוחד, חמישי מיוחד, שישי מיוחד, שבת מיוחדת';
+      names.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await waitFor(page, () => $eval(page, '#renderStage .pg-info', (e) => e.textContent.includes('שבת מיוחדת')));
+    assert.equal(await $eval(page, '#customWeekdayNamesField', (e) => e.hidden), false);
+
+    await evalJS(page, () => {
+      const holiday = document.getElementById('showYomTovName');
+      holiday.checked = false;
+      holiday.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await waitFor(page, () => $eval(page, '#renderStage .pg-info', (e) => !e.textContent.includes('א׳ דראש השנה')));
+    assert.equal(await $eval(page, '#yomTovDisplayField', (e) => e.hidden), true);
+
+    // The automatic holiday style follows the selected Yiddish weekday style,
+    // including the day-aware Chol HaMoed form requested for daily posters.
+    await evalJS(page, () => {
+      const weekday = document.getElementById('weekdayDisplaySel');
+      weekday.value = 'yi';
+      weekday.dispatchEvent(new Event('change', { bubbles: true }));
+      const holiday = document.getElementById('showYomTovName');
+      holiday.checked = true;
+      holiday.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await setStartDate(page, '2026-09-29'); // 18 Tishri, Chol HaMoed Sukkot day 2 in diaspora
+    await clickBuild(page);
+    await waitFor(page, () => $eval(page, '#renderStage .pg-info', (e) => e.textContent.includes('ב׳ חוה״מ סוכות')));
+    dateInfo = await $eval(page, '#renderStage .pg-info', (e) => e.textContent);
+    assert.match(dateInfo, /דינסטאג/);
+    assert.match(dateInfo, /ב׳ חוה״מ סוכות/);
+
+    await sleep(300); // date-display settings use the same debounced persistence path
+    const saved = await evalJS(page, () => JSON.parse(localStorage.getItem('mishna-poster-settings-v1')).design);
+    assert.equal(saved.weekdayDisplay, 'yi');
+    assert.equal(saved.showYomTovName, true);
+    assert.equal(saved.yomTovDisplay, 'auto');
+  });
+
   await scenario('responsive: 375px phone - no overflow, mobile tabs work', async () => {
     await page.setViewport({ width: 375, height: 812, isMobile: true, hasTouch: true });
     await page.goto(BASE, { waitUntil: 'networkidle0' });

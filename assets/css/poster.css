@@ -132,6 +132,11 @@
   font-size: 18.5px;
   font-weight: 600;
   color: var(--pg-muted);
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  text-align: center;
+  /* Each mixed English/Hebrew/Yiddish bit chooses its own bidi context. */
+  unicode-bidi: plaintext;
 }
 .poster-page .pg-info-bit:not(:last-child)::after {
   content: '•';

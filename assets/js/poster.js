@@ -12,6 +12,7 @@ import { MISHNAH, findMasechet, COMMENTARIES } from './mishnah-index.js';
 import {
   gematria, formatHebrewDate, formatGregorianDate, formatWeekday, parseISODate,
   formatRefTitle, sanitizeText, stripNikud, isParshaName, masechetHeName,
+  getYomTovInfo, formatYomTovInfo,
 } from './hebrew.js';
 import { STRINGS } from './i18n.js';
 
@@ -142,6 +143,37 @@ function esc(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+/** Parse Sunday-to-Shabbos labels supplied in the optional custom field. */
+function customWeekdayLabels(value) {
+  return String(value ?? '')
+    .split(/[,;|]+/)
+    .map((label) => label.trim());
+}
+
+/**
+ * Resolve the visible weekday independently from the poster text language.
+ * Saved settings without this field retain the existing "match poster" output.
+ */
+function formatPosterWeekday(date, design, he) {
+  const style = design.weekdayDisplay || 'auto';
+  if (style === 'none') return '';
+  if (style === 'custom') {
+    const custom = customWeekdayLabels(design.customWeekdayNames);
+    return custom[date.getDay()] || formatWeekday(date, he ? 'he' : 'en');
+  }
+  if (style === 'yi' || style === 'yiddish') return formatWeekday(date, 'yi');
+  if (style === 'he' || style === 'en') return formatWeekday(date, style);
+  return formatWeekday(date, he ? 'he' : 'en');
+}
+
+/** The automatic holiday wording follows a selected Yiddish weekday, if any. */
+function yomTovDisplayLanguage(design, he) {
+  const style = design.yomTovDisplay || 'auto';
+  if (style === 'yi' || style === 'yiddish' || style === 'he' || style === 'en') return style;
+  if (design.weekdayDisplay === 'yi' || design.weekdayDisplay === 'yiddish') return 'yi';
+  return he ? 'he' : 'en';
+}
+
 /**
  * Build one poster page element.
  *
@@ -149,7 +181,7 @@ function esc(s) {
  * @param {object} p.entry       {date, book, chapter, mishna}
  * @param {object} p.textData    {paragraphs, versionTitle, versionTitleInHebrew, license}
  * @param {Array}  p.commentaries [{key, paragraphs, versionTitle}]
- * @param {object} p.calendar    {parsha:{en,he}|null}
+ * @param {object} p.calendar    {parsha:{en,he}|null, yomTov?:object|null}
  * @param {number} p.index       1-based day number
  * @param {number} p.total       total days
  * @param {object} p.settings    full app settings (text + design options)
@@ -211,12 +243,30 @@ export function buildPosterPage({ entry, textData, commentaries, calendar, index
   }
   if (head.childElementCount) content.appendChild(head);
 
-  // info bar: weekday + hebrew date + parsha + day count
+  // Info bar: weekday/date, optional date-aware Yom Tov name, parsha and day
+  // count. Weekday and holiday wording are deliberately independent from the
+  // body-text language so a Yiddish date can sit above a Hebrew poster.
   const showDate = design.showDate !== false;
   const showParsha = design.showParsha !== false;
   const infoBits = [];
   if (showDate) {
-    infoBits.push(`${he ? formatWeekday(date, 'he') : formatWeekday(date, 'en')} · ${formatHebrewDate(date, he ? 'he' : 'en')}`);
+    const datePieces = [
+      formatPosterWeekday(date, design, he),
+      formatHebrewDate(date, he ? 'he' : 'en'),
+    ].filter(Boolean);
+    if (datePieces.length) infoBits.push(datePieces.join(' · '));
+  }
+  if (design.showYomTovName === true) {
+    // Main.js stores the per-entry value so all generated output is stable,
+    // even if the weekly calendar request failed. Keep this fallback for
+    // direct callers of buildPosterPage and legacy entry data.
+    const yomTov = (calendar && calendar.yomTov) || getYomTovInfo(date, {
+      diaspora: settings.diaspora !== false,
+    });
+    const yomTovName = formatYomTovInfo(yomTov, {
+      lang: yomTovDisplayLanguage(design, he),
+    });
+    if (yomTovName) infoBits.push(yomTovName);
   }
   if (showParsha && calendar && calendar.parsha) {
     const raw = he ? calendar.parsha.he : calendar.parsha.en;

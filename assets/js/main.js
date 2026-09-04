@@ -6,9 +6,9 @@
 import { setLang, getLang, t } from './i18n.js';
 import { MISHNAH, SEDARIM, findMasechet, COMMENTARIES, ENGLISH_VERSIONS, HEBREW_VERSIONS } from './mishnah-index.js';
 import { buildSchedule, validateSettings, MAX_MISHNAS, totalMishnas } from './schedule.js';
-import { apiRef, commentaryRef, formatHebrewDate, formatGregorianDate, formatWeekday, parseISODate, isoDate, saturdayOf, gematria, masechetHeName, containsLatinLetters } from './hebrew.js';
+import { apiRef, commentaryRef, formatHebrewDate, formatGregorianDate, formatWeekday, parseISODate, isoDate, saturdayOf, gematria, masechetHeName, containsLatinLetters, getYomTovInfo } from './hebrew.js';
 import { getText, getCalendar, runPool, clearSefariaCache } from './sefaria.js';
-import { buildPosterPage, autofitPage, ensureFontsLoaded, TEMPLATES, FONTS, PAGE_W, PAGE_H, randomTemplate } from './poster.js';
+import { buildPosterPage, autofitPage, ensureFontsLoaded, TEMPLATES, FONTS, getPageSize, getPageSizeForElement, randomTemplate } from './poster.js';
 import { generatePdf, renderPagePng, savePdf, suggestedFilename, QUALITIES } from './pdf.js';
 
 /* ===========================================================================
@@ -16,6 +16,8 @@ import { generatePdf, renderPagePng, savePdf, suggestedFilename, QUALITIES } fro
  * =========================================================================*/
 
 const LS_KEY = 'mishna-poster-settings-v1';
+const WEEKDAY_DISPLAY_STYLES = new Set(['auto', 'he', 'yi', 'en', 'custom', 'none']);
+const YOM_TOV_DISPLAY_STYLES = new Set(['auto', 'he', 'yi', 'en']);
 
 const DEFAULTS = {
   lang: 'en',
@@ -39,6 +41,10 @@ const DEFAULTS = {
     template: 'classic',
     autoTemplateSeed: null,
     font: 'frank',
+    commentaryFont: 'frank',
+    pageSize: 'letter',
+    customPageWidth: 8.5,
+    customPageHeight: 11,
     accent: '#8a6d3b',
     institution: '',
     dedication: '',
@@ -46,6 +52,13 @@ const DEFAULTS = {
     logoDataUrl: null,
     bgDataUrl: null,
     bgOverlay: 0.85,
+    showDailyMishnaBadge: true,
+    dailyMishnaBadgeText: '',
+    // "auto" keeps the historic date line; Yiddish/custom modes are opt-in.
+    weekdayDisplay: 'auto',
+    customWeekdayNames: '',
+    showYomTovName: false,
+    yomTovDisplay: 'auto',
     showDate: true,
     showParsha: true,
     showDayCount: true,
@@ -74,6 +87,21 @@ function loadSettings() {
       text: { ...merged.text, ...(s.text || {}) },
       design: { ...merged.design, ...(s.design || {}) },
     });
+    // Saved settings predate both controls. Preserve the old "one font for
+    // everything" behavior for those users, while safely handling malformed
+    // localStorage values.
+    if (!s.design || !s.design.commentaryFont || !FONTS[merged.design.commentaryFont]) merged.design.commentaryFont = FONTS[merged.design.font] ? merged.design.font : 'frank';
+    if (!FONTS[merged.design.font]) merged.design.font = 'frank';
+    const normalizedPageSize = getPageSize(merged.design);
+    merged.design.pageSize = normalizedPageSize.id;
+    if (normalizedPageSize.id === 'custom') {
+      merged.design.customPageWidth = normalizedPageSize.widthIn;
+      merged.design.customPageHeight = normalizedPageSize.heightIn;
+    }
+    if (!WEEKDAY_DISPLAY_STYLES.has(merged.design.weekdayDisplay)) merged.design.weekdayDisplay = 'auto';
+    if (!YOM_TOV_DISPLAY_STYLES.has(merged.design.yomTovDisplay)) merged.design.yomTovDisplay = 'auto';
+    if (typeof merged.design.customWeekdayNames !== 'string') merged.design.customWeekdayNames = '';
+    merged.design.showYomTovName = merged.design.showYomTovName === true;
     return merged;
   } catch {
     return structuredClone(DEFAULTS);
@@ -107,6 +135,53 @@ function el(tag, cls, html) {
   if (cls) e.className = cls;
   if (html != null) e.innerHTML = html;
   return e;
+}
+
+/** Keep CSS print media, render stage, and saved state on the same format. */
+function syncPageSize() {
+  const pageSize = getPageSize(settings.design);
+  settings.design.pageSize = pageSize.id;
+  if (pageSize.id === 'custom') {
+    settings.design.customPageWidth = pageSize.widthIn;
+    settings.design.customPageHeight = pageSize.heightIn;
+  }
+  document.documentElement.dataset.posterPageSize = pageSize.id;
+
+  const renderStage = $('renderStage');
+  if (renderStage) renderStage.style.width = `${pageSize.width}px`;
+  const previewCanvas = $('previewCanvas');
+  if (previewCanvas) previewCanvas.style.aspectRatio = `${pageSize.width} / ${pageSize.height}`;
+
+  // @page cannot depend on a normal element selector or custom property. A
+  // tiny generated rule is the reliable way to make the browser's print
+  // dialog (and headless print-to-PDF) honor the selected format. Every
+  // format uses explicit inches so even browsers lacking a named Tabloid
+  // page size preserve the chosen portrait or landscape dimensions.
+  let style = document.getElementById('printPageSizeStyle');
+  if (!style) {
+    style = document.createElement('style');
+    style.id = 'printPageSizeStyle';
+    document.head.appendChild(style);
+  }
+  style.textContent = `@media print { @page { size: ${pageSize.printFormat}; margin: 0; } }`;
+  return pageSize;
+}
+
+function formatPageInches(value) {
+  return String(Math.round(Number(value) * 100) / 100);
+}
+
+function pageSizeLabel(page) {
+  const size = getPageSizeForElement(page);
+  if (size.id === 'legal') return t('pageSizeLegal');
+  if (size.id === 'tabloid') return t('pageSizeTabloid');
+  if (size.id === 'custom') {
+    return t('pageSizeCustomPreview', {
+      width: formatPageInches(size.widthIn),
+      height: formatPageInches(size.heightIn),
+    });
+  }
+  return t('pageSizeLetter');
 }
 
 /* ===========================================================================
@@ -202,14 +277,18 @@ function currentAutoTemplate() {
 }
 
 function renderFontOptions() {
-  const sel = $('fontSel');
-  sel.innerHTML = '';
-  for (const [key, f] of Object.entries(FONTS)) {
-    const opt = el('option', null, t(f.i18nKey));
-    opt.value = key;
-    opt.selected = settings.design.font === key;
-    sel.appendChild(opt);
-  }
+  const fill = (id, selected) => {
+    const sel = $(id);
+    sel.innerHTML = '';
+    for (const [key, f] of Object.entries(FONTS)) {
+      const opt = el('option', null, t(f.i18nKey));
+      opt.value = key;
+      opt.selected = selected === key;
+      sel.appendChild(opt);
+    }
+  };
+  fill('fontSel', settings.design.font);
+  fill('commentaryFontSel', settings.design.commentaryFont);
 }
 
 function renderVersionOptions() {
@@ -310,11 +389,22 @@ function onContentSettingChange() {
   markStale();
 }
 
+let designRenderVersion = 0;
 function onDesignSettingChange() {
   saveSettings();
+  syncPageSize();
   if (entryData.length && schedule) {
+    const version = ++designRenderVersion;
     rebuildAllPages();
     renderPreview(pageIndex);
+    // A newly selected (especially commentary) font may not have been loaded
+    // when the first layout pass runs. Refit once real glyph metrics are ready
+    // so a fallback font can never reintroduce clipping.
+    ensureFontsLoaded(settings.design).then(() => {
+      if (version !== designRenderVersion || !entryData.length || !schedule) return;
+      rebuildAllPages();
+      renderPreview(pageIndex);
+    });
   }
 }
 
@@ -445,7 +535,9 @@ async function loadEntryData() {
     error: failures.find((f) => f.index === i) ? failures.find((f) => f.index === i).error : null,
   }));
 
-  // weekly parasha (cached per Saturday)
+  // Weekly parasha is cached per Saturday. Holiday context is calculated for
+  // every actual learning date: a weekly Torah-reading response cannot tell us
+  // whether an intervening weekday is, for example, Chol HaMoed.
   const satKeys = [...new Set(schedule.entries.map((e) => isoDate(saturdayOf(parseISODate(e.date)))))];
   const calTasks = satKeys.map((iso) => () => getCalendar(parseISODate(iso), { diaspora: settings.diaspora }));
   const calResults = await runPool(calTasks, {
@@ -455,8 +547,13 @@ async function loadEntryData() {
   const calBySat = new Map();
   satKeys.forEach((iso, i) => { if (calResults.results[i]) calBySat.set(iso, calResults.results[i]); });
   entryData.forEach((d, i) => {
-    const sat = isoDate(saturdayOf(parseISODate(schedule.entries[i].date)));
-    d.calendar = calBySat.get(sat) || null;
+    const entryDate = parseISODate(schedule.entries[i].date);
+    const sat = isoDate(saturdayOf(entryDate));
+    const weeklyCalendar = calBySat.get(sat) || null;
+    const yomTov = getYomTovInfo(entryDate, { diaspora: settings.diaspora });
+    d.calendar = (weeklyCalendar || yomTov)
+      ? { ...(weeklyCalendar || {}), yomTov }
+      : null;
   });
 
   const failed = failures.length;
@@ -474,6 +571,8 @@ function templateDef() {
 
 function rebuildAllPages() {
   const stage = $('renderStage');
+  const pageSize = syncPageSize();
+  stage.style.width = `${pageSize.width}px`;
   stage.innerHTML = '';
   stagePages = [];
   if (!schedule || !entryData.length) return;
@@ -488,12 +587,16 @@ function rebuildAllPages() {
       calendar: d.calendar,
       index: i + 1,
       total: schedule.entries.length,
-      settings: { text: settings.text, design: { ...settings.design, templateDef: templateDef() } },
+      settings: {
+        diaspora: settings.diaspora,
+        text: settings.text,
+        design: { ...settings.design, templateDef: templateDef() },
+      },
       lang: posterLang(),
     });
     stage.appendChild(page);
     const scale = autofitPage(page, { userScale: 1 });
-    if (scale < 0.58) compacted = true;
+    if (scale < 0.58 || page.dataset.fitAtFloor === 'true' || page.dataset.fitOverflow === '1') compacted = true;
     stagePages.push(page);
   });
   const warn = $('warnLine');
@@ -514,6 +617,8 @@ function renderPreview(i) {
   canvas.querySelectorAll('.poster-page').forEach((n) => n.remove());
   $('previewEmpty').classList.toggle('hidden', true);
   const clone = stagePages[pageIndex].cloneNode(true);
+  const pageSize = getPageSizeForElement(clone);
+  canvas.style.aspectRatio = `${pageSize.width} / ${pageSize.height}`;
   clone.style.transform = 'none';
   canvas.appendChild(clone);
   scalePreview();
@@ -525,8 +630,9 @@ function scalePreview() {
   const canvas = $('previewCanvas');
   const page = canvas.querySelector('.poster-page');
   if (!page) return;
+  const pageSize = getPageSizeForElement(page);
   const w = canvas.clientWidth;
-  const scale = w / PAGE_W;
+  const scale = w / pageSize.width;
   page.style.transform = `scale(${scale})`;
 }
 
@@ -540,9 +646,11 @@ function updatePreviewChrome() {
   // Latin letters anywhere on the page - assert it in the preview note.
   if (total && posterLang() === 'he' && stagePages[pageIndex]) {
     const txt = stagePages[pageIndex].textContent || '';
-    $('previewNote').textContent = containsLatinLetters(txt) ? '⚠ Latin characters detected on this page' : 'עברית מלאה · טקסט מספריא';
+    $('previewNote').textContent = containsLatinLetters(txt)
+      ? '⚠ Latin characters detected on this page'
+      : `${pageSizeLabel(stagePages[pageIndex])} · עברית מלאה · טקסט מספריא`;
   } else if (total) {
-    $('previewNote').textContent = 'Letter 8.5" × 11" · Sefaria text';
+    $('previewNote').textContent = `${pageSizeLabel(stagePages[pageIndex])} · Sefaria text`;
   } else {
     $('previewNote').textContent = '';
   }
@@ -596,6 +704,7 @@ async function downloadPdf() {
     }
     const doc = await generatePdf(stagePages, {
       quality: settings.design.quality,
+      pageSize: settings.design,
       onProgress: (done, total) => setProgress(done, total, t('downloading')),
     });
     savePdf(doc, suggestedFilename(schedule, settings));
@@ -624,6 +733,7 @@ async function downloadPng() {
 }
 
 function printPosters() {
+  syncPageSize();
   const stage = $('printStage');
   stage.innerHTML = '';
   for (const p of stagePages) stage.appendChild(p.cloneNode(true));
@@ -786,6 +896,43 @@ function wire() {
   $('showRef').checked = settings.design.showRef;
   $('showRef').addEventListener('change', (e) => { settings.design.showRef = e.target.checked; onDesignSettingChange(); });
 
+  $('showDailyMishnaBadge').checked = settings.design.showDailyMishnaBadge !== false;
+  $('showDailyMishnaBadge').addEventListener('change', (e) => {
+    settings.design.showDailyMishnaBadge = e.target.checked;
+    syncDailyMishnaBadgeTextVisibility();
+    onDesignSettingChange();
+  });
+  $('dailyMishnaBadgeText').value = settings.design.dailyMishnaBadgeText || '';
+  $('dailyMishnaBadgeText').addEventListener('input', (e) => {
+    settings.design.dailyMishnaBadgeText = e.target.value;
+    onDesignSettingChange();
+  });
+  syncDailyMishnaBadgeTextVisibility();
+
+  $('weekdayDisplaySel').value = settings.design.weekdayDisplay || 'auto';
+  $('weekdayDisplaySel').addEventListener('change', (e) => {
+    settings.design.weekdayDisplay = WEEKDAY_DISPLAY_STYLES.has(e.target.value) ? e.target.value : 'auto';
+    syncDateDisplayControls();
+    onDesignSettingChange();
+  });
+  $('customWeekdayNames').value = settings.design.customWeekdayNames || '';
+  $('customWeekdayNames').addEventListener('input', (e) => {
+    settings.design.customWeekdayNames = e.target.value;
+    onDesignSettingChange();
+  });
+  $('showYomTovName').checked = settings.design.showYomTovName === true;
+  $('showYomTovName').addEventListener('change', (e) => {
+    settings.design.showYomTovName = e.target.checked;
+    syncDateDisplayControls();
+    onDesignSettingChange();
+  });
+  $('yomTovDisplaySel').value = settings.design.yomTovDisplay || 'auto';
+  $('yomTovDisplaySel').addEventListener('change', (e) => {
+    settings.design.yomTovDisplay = YOM_TOV_DISPLAY_STYLES.has(e.target.value) ? e.target.value : 'auto';
+    onDesignSettingChange();
+  });
+  syncDateDisplayControls();
+
   const infoToggles = [
     ['showDateInfo', 'showDate'],
     ['showParshaInfo', 'showParsha'],
@@ -811,6 +958,29 @@ function wire() {
   });
 
   $('fontSel').addEventListener('change', (e) => { settings.design.font = e.target.value; onDesignSettingChange(); });
+  $('commentaryFontSel').addEventListener('change', (e) => { settings.design.commentaryFont = e.target.value; onDesignSettingChange(); });
+  $('pageSizeSel').value = getPageSize(settings.design).id;
+  $('pageSizeSel').addEventListener('change', (e) => {
+    settings.design.pageSize = getPageSize(e.target.value).id;
+    syncCustomPageSizeControls();
+    onDesignSettingChange();
+  });
+  const updateCustomPageSize = () => {
+    settings.design.customPageWidth = $('customPageWidth').value;
+    settings.design.customPageHeight = $('customPageHeight').value;
+    const normalized = getPageSize({
+      pageSize: 'custom',
+      customPageWidth: settings.design.customPageWidth,
+      customPageHeight: settings.design.customPageHeight,
+    });
+    settings.design.customPageWidth = normalized.widthIn;
+    settings.design.customPageHeight = normalized.heightIn;
+    syncCustomPageSizeControls();
+    onDesignSettingChange();
+  };
+  $('customPageWidth').addEventListener('change', updateCustomPageSize);
+  $('customPageHeight').addEventListener('change', updateCustomPageSize);
+  syncCustomPageSizeControls();
   $('accentColor').value = settings.design.accent;
   $('accentColor').addEventListener('input', (e) => {
     settings.design.accent = e.target.value;
@@ -870,12 +1040,43 @@ function syncTextLangVisibility() {
   $('englishVersionField').classList.toggle('hidden', heText);
 }
 
+function syncDailyMishnaBadgeTextVisibility() {
+  const field = $('dailyMishnaBadgeTextField');
+  if (field) field.hidden = settings.design.showDailyMishnaBadge === false;
+}
+
+/** Normalize, restore, and conditionally reveal manual page dimensions. */
+function syncCustomPageSizeControls() {
+  const custom = getPageSize({
+    pageSize: 'custom',
+    customPageWidth: settings.design.customPageWidth,
+    customPageHeight: settings.design.customPageHeight,
+  });
+  settings.design.customPageWidth = custom.widthIn;
+  settings.design.customPageHeight = custom.heightIn;
+  const width = $('customPageWidth');
+  const height = $('customPageHeight');
+  if (width) width.value = formatPageInches(custom.widthIn);
+  if (height) height.value = formatPageInches(custom.heightIn);
+  const fields = $('customPageSizeFields');
+  if (fields) fields.hidden = settings.design.pageSize !== 'custom';
+}
+
+/** Keep optional date-format controls out of the way until they are relevant. */
+function syncDateDisplayControls() {
+  const customField = $('customWeekdayNamesField');
+  if (customField) customField.hidden = settings.design.weekdayDisplay !== 'custom';
+  const yomTovField = $('yomTovDisplayField');
+  if (yomTovField) yomTovField.hidden = settings.design.showYomTovName !== true;
+}
+
 /* ===========================================================================
  * init
  * =========================================================================*/
 
 function init() {
   setLang(settings.lang || 'en');
+  syncPageSize();
   wire();
   applyI18n();
   syncTextLangVisibility();

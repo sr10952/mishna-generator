@@ -2,16 +2,16 @@
  * pdf.js - Raster-to-PDF pipeline.
  *
  * The poster DOM is painted by the browser engine itself (html2canvas) at a
- * high device scale, then embedded into a Letter-size PDF via jsPDF. This is
- * what gives pixel-perfect Hebrew with nikud, RTL layout and custom fonts -
- * things that are essentially impossible to do well with text-drawing PDF
- * libraries in the browser.
+ * high device scale, then embedded into a preset or custom-size PDF via jsPDF.
+ * This is what gives pixel-perfect Hebrew with nikud, RTL layout and custom
+ * fonts - things that are essentially impossible to do well with text-drawing
+ * PDF libraries in the browser.
  *
  * A vector-quality alternative is also available: the "Print" button, which
  * sends the very same DOM through the browser's native print-to-PDF.
  */
 
-import { PAGE_W, PAGE_H } from './poster.js';
+import { getPageSize, getPageSizeForElement } from './poster.js';
 
 export const QUALITIES = {
   draft: { scale: 2, label: '192 DPI' },
@@ -19,15 +19,15 @@ export const QUALITIES = {
   ultra: { scale: 4, label: '384 DPI', png: true },
 };
 
-async function renderPage(pageEl, scale) {
+async function renderPage(pageEl, scale, pageSize = getPageSizeForElement(pageEl)) {
   const canvas = await html2canvas(pageEl, {
     scale,
     backgroundColor: '#ffffff',
     logging: false,
-    width: PAGE_W,
-    height: PAGE_H,
-    windowWidth: PAGE_W,
-    windowHeight: PAGE_H,
+    width: pageSize.width,
+    height: pageSize.height,
+    windowWidth: pageSize.width,
+    windowHeight: pageSize.height,
     useCORS: false,
     allowTaint: true,
   });
@@ -37,27 +37,44 @@ async function renderPage(pageEl, scale) {
 /**
  * Generate the PDF from an array of built poster elements.
  * @param {HTMLElement[]} pages attached, auto-fitted poster elements
- * @param {{quality:string, onProgress:Function, lang:string}} opts
+ * @param {{quality:string, pageSize:string|object, onProgress:Function}} opts
  * @returns {Promise<jsPDF>}
  */
-export async function generatePdf(pages, { quality = 'high', onProgress, filename = 'mishna-posters.pdf' } = {}) {
+export async function generatePdf(pages, { quality = 'high', pageSize, onProgress, filename = 'mishna-posters.pdf' } = {}) {
   if (!window.jspdf || !window.jspdf.jsPDF) throw new Error('jsPDF failed to load');
+  if (!pages || !pages.length) throw new Error('no pages');
   const q = QUALITIES[quality] || QUALITIES.high;
+  // Explicit caller choice wins; otherwise each page brings its own format.
+  // The app uses one format for a whole batch, but this keeps the utility
+  // correct if it is reused elsewhere.
+  const explicitSize = pageSize ? getPageSize(pageSize) : null;
+  const sizeFor = (page) => explicitSize || getPageSizeForElement(page);
+  const firstSize = sizeFor(pages[0]);
   const doc = new window.jspdf.jsPDF({
     unit: 'pt',
-    format: 'letter',
-    orientation: 'portrait',
+    format: firstSize.pdfFormat,
+    orientation: firstSize.orientation,
     compress: true,
   });
 
   for (let i = 0; i < pages.length; i++) {
+    const currentSize = sizeFor(pages[i]);
     // let the UI paint the progress bar between pages
     await new Promise((r) => requestAnimationFrame(() => r()));
-    const canvas = await renderPage(pages[i], q.scale);
+    const canvas = await renderPage(pages[i], q.scale, currentSize);
     const usePng = !!q.png;
     const dataUrl = usePng ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.93);
-    if (i > 0) doc.addPage('letter', 'portrait');
-    doc.addImage(dataUrl, usePng ? 'PNG' : 'JPEG', 0, 0, 612, 792, undefined, 'FAST');
+    if (i > 0) doc.addPage(currentSize.pdfFormat, currentSize.orientation);
+    doc.addImage(
+      dataUrl,
+      usePng ? 'PNG' : 'JPEG',
+      0,
+      0,
+      currentSize.widthPt,
+      currentSize.heightPt,
+      undefined,
+      'FAST',
+    );
     canvas.width = canvas.height = 0; // release memory
     if (onProgress) onProgress(i + 1, pages.length);
   }

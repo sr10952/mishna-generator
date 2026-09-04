@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  gematria, stripNikud, sanitizeText, isParshaName, containsLatinLetters,
+  gematria, stripNikud, sanitizeText, isParshaName, isHolidayParsha, containsLatinLetters,
   formatHebrewDate, hebrewDate, isYomTov, saturdayOf, isoDate, parseISODate, formatWeekday,
+  YIDDISH_WEEKDAYS, formatYomTovName, getYomTovInfo,
 } from '../../assets/js/hebrew.js';
 
 test('gematria basics', () => {
@@ -25,7 +26,7 @@ test('stripNikud removes vowels but keeps maqaf and gershayim', () => {
   assert.equal(stripNikud('שָׁלוֹם'), 'שלום');
   assert.equal(stripNikud('בְּהֵמָה'), 'בהמה');
   assert.equal(stripNikud('עַל־יְדֵי'), 'על־ידי'); // maqaf U+05BE kept
-  assert.equal(stripNikud('כ״א באלול'), 'כ״א באלול'); // gershayim kept
+  assert.equal(stripNikud('כ״א אלול'), 'כ״א אלול'); // gershayim kept
   assert.equal(stripNikud('שֶׁבֶת שַׁבָּתוֹן'), 'שבת שבתון');
 });
 
@@ -51,6 +52,16 @@ test('isParshaName heuristic', () => {
   assert.equal(isParshaName(''), false);
 });
 
+test('holiday readings in the calendar parasha slot are detectable', () => {
+  assert.equal(isHolidayParsha('Rosh Hashana I'), true);
+  assert.equal(isHolidayParsha('Rosh HaShanah I'), true);
+  assert.equal(isHolidayParsha('Sukkot Day 1'), true);
+  assert.equal(isHolidayParsha('סוכות חג ראשון'), true);
+  assert.equal(isHolidayParsha('חול המועד פסח'), true);
+  assert.equal(isHolidayParsha('Nitzavim-Vayeilech'), false);
+  assert.equal(isHolidayParsha('Shabbat Shuva'), false);
+});
+
 test('containsLatinLetters', () => {
   assert.equal(containsLatinLetters('שלום'), false);
   assert.equal(containsLatinLetters('שלום Shalom'), true);
@@ -74,14 +85,46 @@ test('hebrewDate via Intl (known anchors)', () => {
 
 test('formatHebrewDate in both languages', () => {
   const d = parseISODate('2026-09-03');
-  assert.equal(formatHebrewDate(d, 'he'), 'כ״א באלול תשפ״ו');
+  assert.equal(formatHebrewDate(d, 'he'), 'כ״א אלול תשפ״ו');
   assert.equal(formatHebrewDate(d, 'en'), '21 Elul 5786');
+  // Poster dates intentionally show the month name itself, without the
+  // Hebrew preposition ב־ (for example, "תשרי", not "בתשרי").
+  assert.equal(formatHebrewDate(parseISODate('2026-09-12'), 'he'), 'א׳ תשרי תשפ״ז');
 });
 
 test('weekday names', () => {
   const d = parseISODate('2026-09-03'); // Thursday
   assert.equal(formatWeekday(d, 'en'), 'Thursday');
   assert.equal(formatWeekday(d, 'he'), 'יום חמישי');
+});
+
+test('Yiddish weekday names cover Sunday through Shabbos', () => {
+  const sunday = parseISODate('2026-09-06');
+  const names = Array.from({ length: 7 }, (_, offset) => {
+    const d = new Date(sunday);
+    d.setDate(d.getDate() + offset);
+    return formatWeekday(d, 'yi');
+  });
+  assert.deepEqual(names, YIDDISH_WEEKDAYS);
+  assert.equal(formatWeekday(parseISODate('2026-09-12'), 'yiddish'), 'שב"ק');
+});
+
+test('date-aware Yom Tov names include festival and Chol HaMoed forms', () => {
+  assert.equal(
+    formatYomTovName(parseISODate('2026-09-12'), { diaspora: true, lang: 'yi' }),
+    'א׳ דראש השנה',
+  );
+  assert.equal(
+    formatYomTovName(parseISODate('2026-09-29'), { diaspora: true, lang: 'yi' }),
+    'ב׳ חוה״מ סוכות',
+  );
+  assert.equal(
+    formatYomTovName(parseISODate('2026-09-27'), { diaspora: false, lang: 'yi' }),
+    'א׳ חוה״מ סוכות',
+    'Sukkot day two becomes the first Chol HaMoed day in Israel',
+  );
+  assert.equal(formatYomTovName(parseISODate('2026-09-03'), { lang: 'yi' }), '');
+  assert.equal(getYomTovInfo(parseISODate('2026-10-03')).nameHe, 'שמיני עצרת');
 });
 
 test('isYomTov anchors (2026/5787)', () => {

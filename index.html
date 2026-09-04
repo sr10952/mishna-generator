@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Mishna Poster Generator · מחולל כרזות משנה</title>
-  <meta name="description" content="Generate printable Letter-size daily Mishnah learning posters from open-source Sefaria texts. One mishna per page, Hebrew with nikud, Bartenura commentary, custom templates." />
+  <meta name="description" content="Generate printable Letter, Legal, Tabloid, or custom-size daily Mishnah learning posters from open-source Sefaria texts. One mishna per page, Hebrew with nikud, Bartenura commentary, custom templates." />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231e3a5f'/%3E%3Ctext x='32' y='45' font-size='36' text-anchor='middle' fill='%23fca311' font-family='serif'%3E%D7%9E%3C/text%3E%3C/svg%3E" />
   <link rel="stylesheet" href="assets/css/fonts.css" />
   <link rel="stylesheet" href="assets/css/main.css" />
@@ -24,7 +24,7 @@
         <div class="brand-mark" aria-hidden="true">מ</div>
         <div class="brand-text">
           <h1 data-i18n="appTitle">Mishna Poster Generator</h1>
-          <p data-i18n="appSubtitle">Daily Mishnah learning posters — Letter size, one mishna per page</p>
+          <p data-i18n="appSubtitle">Daily Mishnah learning posters — one mishna per page</p>
         </div>
       </div>
       <div class="topbar-actions">
@@ -151,11 +151,44 @@
 
         <h3 class="sub-title" data-i18n="infoLine">Poster info line</h3>
         <div class="comm-toggles">
+          <label class="check chip"><input type="checkbox" id="showDailyMishnaBadge" checked /><span data-i18n="showDailyMishnaBadge">Show Daily Mishna box</span></label>
           <label class="check chip"><input type="checkbox" id="showDateInfo" checked /><span data-i18n="colHebDate">Hebrew date</span></label>
+          <label class="check chip"><input type="checkbox" id="showYomTovName" /><span data-i18n="showYomTovName">Show Yom Tov / holiday name when available</span></label>
           <label class="check chip"><input type="checkbox" id="showParshaInfo" checked /><span data-i18n="colParsha">Parasha</span></label>
           <label class="check chip"><input type="checkbox" id="showDayCountInfo" checked /><span data-i18n="dayCount">Day counter</span></label>
           <label class="check chip"><input type="checkbox" id="showAttributionInfo" checked /><span data-i18n="attribution">Sefaria attribution</span></label>
         </div>
+        <label class="field" id="dailyMishnaBadgeTextField">
+          <span class="field-label" data-i18n="dailyMishnaBadgeText">Daily Mishna box text</span>
+          <input type="text" id="dailyMishnaBadgeText" data-i18n-ph="dailyMishnaBadgeTextPh" placeholder="Leave blank for “Daily Mishnah”" maxlength="60" />
+        </label>
+        <div class="grid-2">
+          <label class="field">
+            <span class="field-label" data-i18n="weekdayDisplay">Weekday display</span>
+            <select id="weekdayDisplaySel">
+              <option value="auto" data-i18n="weekdayDisplayAuto">Match poster language</option>
+              <option value="he" data-i18n="weekdayDisplayHebrew">Hebrew</option>
+              <option value="yi" data-i18n="weekdayDisplayYiddish">Yiddish</option>
+              <option value="en" data-i18n="weekdayDisplayEnglish">English</option>
+              <option value="custom" data-i18n="weekdayDisplayCustom">Custom names</option>
+              <option value="none" data-i18n="weekdayDisplayNone">Hide weekday</option>
+            </select>
+          </label>
+          <label class="field" id="yomTovDisplayField" hidden>
+            <span class="field-label" data-i18n="yomTovDisplay">Yom Tov name style</span>
+            <select id="yomTovDisplaySel">
+              <option value="auto" data-i18n="yomTovDisplayAuto">Match weekday / poster style</option>
+              <option value="he" data-i18n="weekdayDisplayHebrew">Hebrew</option>
+              <option value="yi" data-i18n="weekdayDisplayYiddish">Yiddish</option>
+              <option value="en" data-i18n="weekdayDisplayEnglish">English</option>
+            </select>
+          </label>
+        </div>
+        <label class="field" id="customWeekdayNamesField" hidden>
+          <span class="field-label" data-i18n="customWeekdayNames">Custom weekday names</span>
+          <input type="text" id="customWeekdayNames" dir="auto" data-i18n-ph="customWeekdayNamesPh" placeholder="Sun, Mon, Tue, Wed, Thu, Fri, Sat" maxlength="300" />
+          <span class="hint" data-i18n="customWeekdayNamesHint">Enter seven comma-separated names, Sunday through Shabbos.</span>
+        </label>
       </div>
 
       <!-- 3. design -->
@@ -176,9 +209,39 @@
             <select id="fontSel"></select>
           </label>
           <label class="field">
+            <span class="field-label" data-i18n="commentaryFont">Commentary font</span>
+            <select id="commentaryFontSel"></select>
+          </label>
+        </div>
+
+        <div class="grid-2">
+          <label class="field">
+            <span class="field-label" data-i18n="pageSize">Page size</span>
+            <select id="pageSizeSel">
+              <option value="letter" data-i18n="pageSizeLetter">Letter (8.5 × 11 in)</option>
+              <option value="legal" data-i18n="pageSizeLegal">Legal (8.5 × 14 in)</option>
+              <option value="tabloid" data-i18n="pageSizeTabloid">Tabloid (11 × 17 in)</option>
+              <option value="custom" data-i18n="pageSizeCustom">Custom size</option>
+            </select>
+          </label>
+          <label class="field">
             <span class="field-label" data-i18n="accentColor">Accent color</span>
             <input type="color" id="accentColor" value="#8a6d3b" class="color-input" />
           </label>
+        </div>
+
+        <div class="custom-page-size-fields" id="customPageSizeFields" hidden>
+          <div class="grid-2">
+            <label class="field">
+              <span class="field-label" data-i18n="customPageWidth">Width (in)</span>
+              <input type="number" id="customPageWidth" min="5" max="17" step="0.01" inputmode="decimal" />
+            </label>
+            <label class="field">
+              <span class="field-label" data-i18n="customPageHeight">Height (in)</span>
+              <input type="number" id="customPageHeight" min="5" max="17" step="0.01" inputmode="decimal" />
+            </label>
+          </div>
+          <p class="hint" data-i18n="customPageSizeHint">Choose dimensions from 5 to 17 inches. Width and height may be swapped for landscape.</p>
         </div>
 
         <label class="field">
@@ -276,7 +339,7 @@
           <div class="preview-empty" id="previewEmpty">
             <div class="preview-empty-inner">
               <div class="pe-mark">מ</div>
-              <p data-i18n="appSubtitle">Daily Mishnah learning posters — Letter size, one mishna per page</p>
+              <p data-i18n="appSubtitle">Daily Mishnah learning posters — one mishna per page</p>
             </div>
           </div>
         </div>

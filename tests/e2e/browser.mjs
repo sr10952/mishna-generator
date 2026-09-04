@@ -22,7 +22,11 @@ export async function ensureChromium() {
   const chromium = require('@sparticuz/chromium');
   const libDir = path.join(tmpdir(), 'al2023', 'lib');
   if (!existsSync(path.join(libDir, 'libnspr4.so'))) {
-    const tarBr = path.join(path.dirname(require.resolve('@sparticuz/chromium/package.json')), 'bin', 'al2023.tar.br');
+    // Recent @sparticuz/chromium releases intentionally do not export their
+    // package.json. Resolve the public entry point instead, then walk from
+    // build/cjs back to the package root.
+    const chromiumRoot = path.resolve(path.dirname(require.resolve('@sparticuz/chromium')), '../..');
+    const tarBr = path.join(chromiumRoot, 'bin', 'al2023.tar.br');
     const tar = zlib.brotliDecompressSync(readFileSync(tarBr));
     const tarPath = path.join(tmpdir(), 'al2023.tar');
     writeFileSync(tarPath, tar);

@@ -15,6 +15,7 @@ import {
   getYomTovInfo, formatYomTovInfo,
 } from './hebrew.js';
 import { STRINGS } from './i18n.js';
+import { PROJECT_DEDICATION_HE } from './settings.js';
 
 /**
  * Physical poster formats. The raster dimensions are based on CSS's 96 px/in
@@ -403,6 +404,11 @@ export function buildPosterPage({ entry, textData, commentaries, calendar, index
   if (design.showAttribution !== false) sourceBits.push(he ? 'באדיבות ספריא' : 'Sefaria.org');
   if (sourceBits.length) footLeft.appendChild(el('span', 'pg-attr', esc(sourceBits.join(he ? ' · ' : ' · '))));
   if (footLeft.childElementCount) foot.appendChild(footLeft);
+  // Project memorial dedication (on by default). Always Hebrew so native-Hebrew
+  // posters remain free of Latin text; shown in both UI languages.
+  if (design.showProjectDedication !== false) {
+    foot.appendChild(el('div', 'pg-project-dedication', esc(PROJECT_DEDICATION_HE)));
+  }
   // Posters are intentionally independent handouts, not a bound document, so
   // do not add a page N of M marker to their footer.
   content.appendChild(foot);

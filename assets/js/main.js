@@ -7,68 +7,25 @@ import { setLang, getLang, t } from './i18n.js';
 import { MISHNAH, SEDARIM, findMasechet, COMMENTARIES, ENGLISH_VERSIONS, HEBREW_VERSIONS } from './mishnah-index.js';
 import { buildSchedule, validateSettings, MAX_MISHNAS, totalMishnas } from './schedule.js';
 import { apiRef, commentaryRef, formatHebrewDate, formatGregorianDate, formatWeekday, parseISODate, isoDate, saturdayOf, gematria, masechetHeName, containsLatinLetters, getYomTovInfo } from './hebrew.js';
-import { getText, getCalendar, runPool, clearSefariaCache } from './sefaria.js';
+import { getCalendar, runPool, clearSefariaCache } from './sefaria.js';
+import { getText } from './content.js';
 import { buildPosterPage, autofitPage, ensureFontsLoaded, TEMPLATES, FONTS, getPageSize, getPageSizeForElement, randomTemplate } from './poster.js';
 import { generatePdf, renderPagePng, savePdf, suggestedFilename, QUALITIES } from './pdf.js';
+import { normalizeSettings, WEEKDAY_DISPLAY_STYLES, YOM_TOV_DISPLAY_STYLES } from './settings.js';
+import {
+  MAX_PROFILES, PROFILE_OK, readProfiles, writeProfiles, saveProfile as saveProfileEntry,
+  loadProfile as loadProfileEntry, renameProfile as renameProfileEntry, deleteProfile as deleteProfileEntry,
+  serializeBackup, parseBackup, mergeProfiles,
+} from './profiles.js';
 
 /* ===========================================================================
  * State
  * =========================================================================*/
 
 const LS_KEY = 'mishna-poster-settings-v1';
-const WEEKDAY_DISPLAY_STYLES = new Set(['auto', 'he', 'yi', 'en', 'custom', 'none']);
-const YOM_TOV_DISPLAY_STYLES = new Set(['auto', 'he', 'yi', 'en']);
-
-const DEFAULTS = {
-  lang: 'en',
-  startDate: isoDate(new Date()),
-  count: 7,
-  weekdays: [0, 1, 2, 3, 4, 5, 6],
-  skipYomTov: true,
-  diaspora: true,
-  start: { book: 'Mishnah Bekhorot', chapter: 3, mishna: 2 }, // the example from the brief
-  text: {
-    language: 'he',
-    nikud: true,
-    hebrewVersion: 'auto',
-    englishVersion: 'auto',
-    bartenura: true,
-    tosafotYT: false,
-    rambam: false,
-    commentaryLang: 'he',
-  },
-  design: {
-    template: 'classic',
-    autoTemplateSeed: null,
-    font: 'frank',
-    commentaryFont: 'frank',
-    pageSize: 'letter',
-    customPageWidth: 8.5,
-    customPageHeight: 11,
-    accent: '#8a6d3b',
-    institution: '',
-    dedication: '',
-    footerNote: '',
-    logoDataUrl: null,
-    bgDataUrl: null,
-    bgOverlay: 0.85,
-    showDailyMishnaBadge: true,
-    dailyMishnaBadgeText: '',
-    // "auto" keeps the historic date line; Yiddish/custom modes are opt-in.
-    weekdayDisplay: 'auto',
-    customWeekdayNames: '',
-    showYomTovName: false,
-    yomTovDisplay: 'auto',
-    showDate: true,
-    showParsha: true,
-    showDayCount: true,
-    showRef: true,
-    showAttribution: true,
-    quality: 'high',
-  },
-};
 
 let settings = loadSettings();
+let profiles = readProfiles({ read: (k) => localStorage.getItem(k) });
 let schedule = null;      // {entries, wrappedToStart, skipped}
 let entryData = [];       // per-entry {text, commentaries, calendar, error}
 let stagePages = [];      // built poster elements (render stage)
@@ -76,36 +33,18 @@ let pageIndex = 0;
 let contentHash = '';     // detects schedule/content changes => stale state
 
 function loadSettings() {
+  // normalizeSettings performs the forward/backward-compatible deep merge onto
+  // DEFAULTS and repairs every field (migration, invalid values, obsolete keys).
   try {
     const raw = localStorage.getItem(LS_KEY);
-    if (!raw) return structuredClone(DEFAULTS);
-    const s = JSON.parse(raw);
-    // deep-merge onto defaults (keeps forward compatibility)
-    const merged = structuredClone(DEFAULTS);
-    Object.assign(merged, s, {
-      start: { ...merged.start, ...(s.start || {}) },
-      text: { ...merged.text, ...(s.text || {}) },
-      design: { ...merged.design, ...(s.design || {}) },
-    });
-    // Saved settings predate both controls. Preserve the old "one font for
-    // everything" behavior for those users, while safely handling malformed
-    // localStorage values.
-    if (!s.design || !s.design.commentaryFont || !FONTS[merged.design.commentaryFont]) merged.design.commentaryFont = FONTS[merged.design.font] ? merged.design.font : 'frank';
-    if (!FONTS[merged.design.font]) merged.design.font = 'frank';
-    const normalizedPageSize = getPageSize(merged.design);
-    merged.design.pageSize = normalizedPageSize.id;
-    if (normalizedPageSize.id === 'custom') {
-      merged.design.customPageWidth = normalizedPageSize.widthIn;
-      merged.design.customPageHeight = normalizedPageSize.heightIn;
-    }
-    if (!WEEKDAY_DISPLAY_STYLES.has(merged.design.weekdayDisplay)) merged.design.weekdayDisplay = 'auto';
-    if (!YOM_TOV_DISPLAY_STYLES.has(merged.design.yomTovDisplay)) merged.design.yomTovDisplay = 'auto';
-    if (typeof merged.design.customWeekdayNames !== 'string') merged.design.customWeekdayNames = '';
-    merged.design.showYomTovName = merged.design.showYomTovName === true;
-    return merged;
+    return normalizeSettings(raw ? JSON.parse(raw) : {});
   } catch {
-    return structuredClone(DEFAULTS);
+    return normalizeSettings({});
   }
+}
+
+function persistProfiles() {
+  writeProfiles({ write: (k, v) => localStorage.setItem(k, v) }, profiles);
 }
 
 let saveTimer;
@@ -211,6 +150,7 @@ function applyI18n() {
   updateRefHint();
   updateScheduleTable();
   updatePreviewChrome();
+  if ($('profileSelect')) renderProfiles();
 }
 
 /* ===========================================================================
@@ -944,6 +884,20 @@ function wire() {
     $(inputId).addEventListener('change', (e) => { settings.design[key] = e.target.checked; onDesignSettingChange(); });
   }
 
+  // Project memorial dedication: on by default; unchecking asks for confirmation.
+  const projDed = $('showProjectDedicationInfo');
+  projDed.checked = settings.design.showProjectDedication !== false;
+  projDed.addEventListener('change', async (e) => {
+    if (!e.target.checked) {
+      const ok = await confirmDialog(t('projectDedicationConfirm'));
+      if (!ok) { e.target.checked = true; return; }
+    }
+    settings.design.showProjectDedication = e.target.checked;
+    onDesignSettingChange();
+  });
+
+  wireProfilesAndBackup();
+
   // design
   $('surpriseBtn').addEventListener('click', () => {
     settings.design.template = 'auto';
@@ -1071,6 +1025,302 @@ function syncDateDisplayControls() {
 }
 
 /* ===========================================================================
+ * Accessible modal dialogs (confirm / prompt)
+ * =========================================================================*/
+
+let modalPreviousFocus = null;
+
+/** Promise-based confirmation dialog. Resolves true on confirm, false on cancel. */
+function confirmDialog(message) {
+  return new Promise((resolve) => {
+    const backdrop = $('confirmBackdrop');
+    $('confirmText').textContent = message;
+    // Generic OK/Cancel wording matching the UI language.
+    $('confirmOk').textContent = getLang() === 'he' ? 'אישור' : 'OK';
+    $('confirmCancel').textContent = getLang() === 'he' ? 'ביטול' : 'Cancel';
+    modalPreviousFocus = document.activeElement;
+    backdrop.hidden = false;
+    $('confirmOk').focus();
+
+    const cleanup = (result) => {
+      backdrop.hidden = true;
+      $('confirmOk').removeEventListener('click', onOk);
+      $('confirmCancel').removeEventListener('click', onCancel);
+      backdrop.removeEventListener('click', onBackdrop);
+      document.removeEventListener('keydown', onKey);
+      if (modalPreviousFocus && modalPreviousFocus.focus) modalPreviousFocus.focus();
+      resolve(result);
+    };
+    const onOk = () => cleanup(true);
+    const onCancel = () => cleanup(false);
+    const onBackdrop = (e) => { if (e.target === backdrop) cleanup(false); };
+    const onKey = (e) => {
+      if (e.key === 'Escape') cleanup(false);
+      if (e.key === 'Tab') trapFocus(e, $('confirmModal'));
+    };
+    $('confirmOk').addEventListener('click', onOk);
+    $('confirmCancel').addEventListener('click', onCancel);
+    backdrop.addEventListener('click', onBackdrop);
+    document.addEventListener('keydown', onKey);
+  });
+}
+
+/** Promise-based text prompt. Resolves the string or null on cancel. */
+function promptDialog(message, initial = '') {
+  return new Promise((resolve) => {
+    const backdrop = $('promptBackdrop');
+    $('promptText').textContent = message;
+    const input = $('promptInput');
+    input.value = initial;
+    $('promptOk').textContent = getLang() === 'he' ? 'אישור' : 'OK';
+    $('promptCancel').textContent = getLang() === 'he' ? 'ביטול' : 'Cancel';
+    modalPreviousFocus = document.activeElement;
+    backdrop.hidden = false;
+    input.focus();
+    input.select();
+
+    const cleanup = (result) => {
+      backdrop.hidden = true;
+      $('promptOk').removeEventListener('click', onOk);
+      $('promptCancel').removeEventListener('click', onCancel);
+      backdrop.removeEventListener('click', onBackdrop);
+      document.removeEventListener('keydown', onKey);
+      if (modalPreviousFocus && modalPreviousFocus.focus) modalPreviousFocus.focus();
+      resolve(result);
+    };
+    const onOk = () => cleanup(input.value);
+    const onCancel = () => cleanup(null);
+    const onBackdrop = (e) => { if (e.target === backdrop) cleanup(null); };
+    const onKey = (e) => {
+      if (e.key === 'Escape') cleanup(null);
+      if (e.key === 'Enter' && document.activeElement === input) { e.preventDefault(); cleanup(input.value); }
+      if (e.key === 'Tab') trapFocus(e, $('promptModal'));
+    };
+    $('promptOk').addEventListener('click', onOk);
+    $('promptCancel').addEventListener('click', onCancel);
+    backdrop.addEventListener('click', onBackdrop);
+    document.addEventListener('keydown', onKey);
+  });
+}
+
+function trapFocus(e, container) {
+  const focusable = container.querySelectorAll('button, input, [tabindex]:not([tabindex="-1"])');
+  if (!focusable.length) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+}
+
+/* ===========================================================================
+ * Profiles & backup / restore
+ * =========================================================================*/
+
+function setProfileStatus(msg, kind = '') {
+  const line = $('profileStatus');
+  line.textContent = msg || '';
+  line.className = `status-line ${kind}`.trim();
+}
+
+/** Repopulate the profile <select> and the count label. */
+function renderProfiles() {
+  const sel = $('profileSelect');
+  const prev = sel.value;
+  sel.innerHTML = '';
+  if (!profiles.length) {
+    const opt = el('option', null, t('profileNone'));
+    opt.value = '';
+    opt.disabled = true;
+    opt.selected = true;
+    sel.appendChild(opt);
+    sel.disabled = true;
+  } else {
+    sel.disabled = false;
+    for (const p of profiles) {
+      const opt = el('option', null, p.name);
+      opt.value = p.id;
+      sel.appendChild(opt);
+    }
+    if (profiles.some((p) => p.id === prev)) sel.value = prev;
+  }
+  const has = profiles.length > 0;
+  ['profileLoadBtn', 'profileRenameBtn', 'profileDeleteBtn'].forEach((id) => { $(id).disabled = !has; });
+  $('profileCountLabel').textContent = t('profileCount', { n: profiles.length, max: MAX_PROFILES });
+}
+
+/** Apply an imported / loaded settings object as the live configuration. */
+function applyLoadedSettings(next, { keepImages = true } = {}) {
+  const incoming = normalizeSettings(next);
+  if (keepImages) {
+    // Loaded profiles/backups are image-free; preserve the user's current
+    // uploaded logo/background rather than wiping them.
+    incoming.design.logoDataUrl = settings.design.logoDataUrl;
+    incoming.design.bgDataUrl = settings.design.bgDataUrl;
+  }
+  settings = incoming;
+  setLang(settings.lang || 'en');
+  saveSettings();
+  // Rewire all form controls to the new values and rebuild dependent UI.
+  refreshFormFromSettings();
+  applyI18n();
+  syncTextLangVisibility();
+  syncPageSize();
+  renderScheduleIfNeeded();
+  if (entryData.length) markStale();
+}
+
+/** Push the current `settings` object back into every form control. */
+function refreshFormFromSettings() {
+  $('startDate').value = settings.startDate;
+  $('count').value = settings.count;
+  $('skipYomTov').checked = settings.skipYomTov;
+  $('diasporaSel').value = settings.diaspora ? 'diaspora' : 'israel';
+  buildWeekdayChips();
+  refreshRefSelectors();
+  updateRefHint();
+  $('textLang').value = settings.text.language;
+  $('nikudSel').value = settings.text.nikud ? 'on' : 'off';
+  renderVersionOptions();
+  $('commBartenura').checked = settings.text.bartenura;
+  $('commTosafotYT').checked = settings.text.tosafotYT;
+  $('commRambam').checked = settings.text.rambam;
+  $('commLangSel').value = settings.text.commentaryLang;
+  $('showRef').checked = settings.design.showRef;
+  $('showDailyMishnaBadge').checked = settings.design.showDailyMishnaBadge !== false;
+  $('dailyMishnaBadgeText').value = settings.design.dailyMishnaBadgeText || '';
+  syncDailyMishnaBadgeTextVisibility();
+  $('weekdayDisplaySel').value = settings.design.weekdayDisplay || 'auto';
+  $('customWeekdayNames').value = settings.design.customWeekdayNames || '';
+  $('showYomTovName').checked = settings.design.showYomTovName === true;
+  $('yomTovDisplaySel').value = settings.design.yomTovDisplay || 'auto';
+  syncDateDisplayControls();
+  $('showDateInfo').checked = settings.design.showDate;
+  $('showParshaInfo').checked = settings.design.showParsha;
+  $('showDayCountInfo').checked = settings.design.showDayCount;
+  $('showAttributionInfo').checked = settings.design.showAttribution;
+  $('showProjectDedicationInfo').checked = settings.design.showProjectDedication !== false;
+  renderTemplateOptions();
+  renderFontOptions();
+  $('pageSizeSel').value = getPageSize(settings.design).id;
+  syncCustomPageSizeControls();
+  $('accentColor').value = settings.design.accent;
+  $('institution').value = settings.design.institution;
+  $('dedication').value = settings.design.dedication;
+  $('footerNote').value = settings.design.footerNote;
+  $('bgOverlay').value = settings.design.bgOverlay;
+  $('overlayVal').textContent = `${Math.round(settings.design.bgOverlay * 100)}%`;
+  $('qualitySel').value = settings.design.quality;
+}
+
+function wireProfilesAndBackup() {
+  renderProfiles();
+
+  $('profileSaveBtn').addEventListener('click', async () => {
+    const name = $('profileNameInput').value;
+    const clean = String(name || '').trim();
+    if (!clean) { setProfileStatus(t('profileErrEmptyName'), 'error'); return; }
+    // Confirm before overwriting an existing profile of the same name.
+    const existing = profiles.find((p) => p.name.toLowerCase() === clean.toLowerCase());
+    if (existing) {
+      const ok = await confirmDialog(t('profileOverwriteConfirm', { name: existing.name }));
+      if (!ok) return;
+    }
+    const res = saveProfileEntry(profiles, clean, settings);
+    if (res.status !== PROFILE_OK) {
+      setProfileStatus(t(res.status, { max: MAX_PROFILES }), 'error');
+      return;
+    }
+    profiles = res.profiles;
+    persistProfiles();
+    renderProfiles();
+    $('profileSelect').value = res.profile.id;
+    $('profileNameInput').value = '';
+    setProfileStatus(t('profileSaved', { name: res.profile.name }), 'ok');
+  });
+
+  $('profileLoadBtn').addEventListener('click', () => {
+    const id = $('profileSelect').value;
+    if (!id) { setProfileStatus(t('profileSelectFirst'), 'error'); return; }
+    const loaded = loadProfileEntry(profiles, id);
+    if (!loaded) { setProfileStatus(t('profileErrNotFound'), 'error'); return; }
+    const p = profiles.find((x) => x.id === id);
+    applyLoadedSettings(loaded);
+    setProfileStatus(t('profileLoaded', { name: p ? p.name : '' }), 'ok');
+  });
+
+  $('profileRenameBtn').addEventListener('click', async () => {
+    const id = $('profileSelect').value;
+    if (!id) { setProfileStatus(t('profileSelectFirst'), 'error'); return; }
+    const p = profiles.find((x) => x.id === id);
+    const next = await promptDialog(t('profileRenamePrompt'), p ? p.name : '');
+    if (next == null) return;
+    const res = renameProfileEntry(profiles, id, next);
+    if (res.status !== PROFILE_OK) { setProfileStatus(t(res.status, { max: MAX_PROFILES }), 'error'); return; }
+    profiles = res.profiles;
+    persistProfiles();
+    renderProfiles();
+    $('profileSelect').value = id;
+    setProfileStatus(t('profileRenamed', { name: res.profile.name }), 'ok');
+  });
+
+  $('profileDeleteBtn').addEventListener('click', async () => {
+    const id = $('profileSelect').value;
+    if (!id) { setProfileStatus(t('profileSelectFirst'), 'error'); return; }
+    const p = profiles.find((x) => x.id === id);
+    const ok = await confirmDialog(t('profileDeleteConfirm', { name: p ? p.name : '' }));
+    if (!ok) return;
+    const res = deleteProfileEntry(profiles, id);
+    if (res.status !== PROFILE_OK) { setProfileStatus(t(res.status, { max: MAX_PROFILES }), 'error'); return; }
+    profiles = res.profiles;
+    persistProfiles();
+    renderProfiles();
+    setProfileStatus(t('profileDeleted', { name: res.profile ? res.profile.name : '' }), 'ok');
+  });
+
+  $('backupExportBtn').addEventListener('click', () => {
+    const json = serializeBackup(settings, profiles);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `mishna-poster-backup-${stamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    setProfileStatus(t('backupExported'), 'ok');
+  });
+
+  $('backupImportBtn').addEventListener('click', () => $('backupImportFile').click());
+  $('backupImportFile').addEventListener('change', async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = ''; // allow re-importing the same file later
+    if (!file) return;
+    let text;
+    try { text = await file.text(); } catch { setProfileStatus(t('importErrParse'), 'error'); return; }
+    const parsed = parseBackup(text);
+    if (!parsed.ok) { setProfileStatus(t(parsed.error), 'error'); return; }
+    const ok = await confirmDialog(t('backupImportConfirm'));
+    if (!ok) return;
+    // Merge profiles first (bounded), then apply settings.
+    let added = 0; let updated = 0; let skipped = 0;
+    if (parsed.profiles && parsed.profiles.length) {
+      const merged = mergeProfiles(profiles, parsed.profiles);
+      profiles = merged.profiles;
+      added = merged.added; updated = merged.updated; skipped = merged.skipped;
+      persistProfiles();
+      renderProfiles();
+    }
+    if (parsed.settings) applyLoadedSettings(parsed.settings);
+    const msg = (added || updated || skipped)
+      ? t('importOkProfiles', { added, updated, skipped })
+      : t('importOk');
+    setProfileStatus(msg, 'ok');
+  });
+}
+
+/* ===========================================================================
  * init
  * =========================================================================*/
 
@@ -1096,3 +1346,14 @@ function init() {
 }
 
 init();
+
+/* ===========================================================================
+ * PWA: register the offline service worker (progressive enhancement).
+ * Works from http(s) and from file://-served static copies where supported.
+ * =========================================================================*/
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    const swUrl = new URL('sw.js', document.baseURI).href;
+    navigator.serviceWorker.register(swUrl).catch(() => { /* offline install optional */ });
+  });
+}

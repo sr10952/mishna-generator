@@ -24,6 +24,24 @@ test('Hebrew strings are actually Hebrew where expected', () => {
   }
 });
 
+test('new profile/backup keys exist in both languages and interpolate', () => {
+  const keys = ['profilesTitle', 'profileSave', 'profileDeleteConfirm', 'backupExport',
+    'importErrParse', 'projectDedication', 'projectDedicationConfirm'];
+  for (const k of keys) {
+    assert.ok(STRINGS.en[k] && STRINGS.he[k], `missing ${k}`);
+  }
+  setLang('en');
+  assert.equal(t('profileCount', { n: 3, max: 20 }), '3 of 20 profiles saved');
+  setLang('he');
+  assert.match(t('profileCount', { n: 3, max: 20 }), /3.*20/);
+  setLang('en');
+});
+
+test('project dedication confirmation strings carry the memorial name', () => {
+  assert.match(STRINGS.en.projectDedicationConfirm, /אסתר בילא/);
+  assert.match(STRINGS.he.projectDedicationConfirm, /אסתר בילא/);
+});
+
 test('t() switches language and interpolates', () => {
   setLang('en');
   assert.equal(t('appTitle'), 'Mishna Poster Generator');

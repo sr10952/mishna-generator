@@ -81,7 +81,7 @@ and served locally.
   - `tools/build-content.mjs` — targeted whole-chapter captures from the live Sefaria API
 - Installable PWA with a manifest, icons, and an offline-first service worker that
   precaches the entire app shell (`tools/build-sw.mjs` regenerates `sw.js`)
-- A memorial **project dedication** line — *לע״נ אסתר בילא ע״ה בת שמשון צבי ני״ו* — is shown
+- A memorial **project dedication** line — *לע״נ אסתר בילא ע״ה בת יבלחט״א מו״ה שמשון צבי ני״ו* — is shown
   at the bottom of every poster by default; it can be turned off (with confirmation) and is
   pure Hebrew so native-Hebrew posters stay Latin-free
 
@@ -98,8 +98,28 @@ and served locally.
   block — everything stays static, so any host serves it with no configuration
 
 **Interface**
+- **Tabbed settings** (Schedule · Content · Design · Saved) with a sticky section
+  tab bar and a sticky **generate dock** — a one-line summary (days · starting
+  mishna · page size), the Generate button, live progress/status — always in
+  reach on desktop, floating above the bottom tab bar on phones
+- **Live preview**: the app builds the current schedule automatically on load
+  (bundled offline text makes the built-in example instant), and keeps the
+  posters updated ~1 s after any schedule/content change; the Generate button
+  remains for explicit rebuilds/retries
+- **Poster-first preview column**: the preview card keeps the whole poster plus
+  the export bar (PDF quality, Download PDF, PNG, Print) inside the viewport,
+  centered and height-constrained on desktop
+- **Tractate search** — type to filter all 63 masechtot (English or Hebrew),
+  the selected tractate stays pinned under "Selected"
+- **Template thumbnails** render mini poster mocks (real background, frame,
+  accent and text bars) instead of flat swatches; accent color has quick-pick
+  swatches; "Surprise me" stays one click away
+- **Saved tab** keeps named profiles + JSON backup, plus **Restore defaults**
+  (with confirmation)
+- A dismissible **welcome banner** on first visit and a "How it works" dialog
+  (top bar `?`) explain the three-step flow
 - Full **native Hebrew mode**: RTL layout, Hebrew UI strings, Hebrew dates,
-  gematria numerals (א׳, ב׳…), zero Latin characters anywhere on the poster
+  gematria numerals (א׳, ב…), zero Latin characters anywhere on the poster
 - Responsive from 375 px phones (tabbed mobile layout) through tablets to desktop
   (two-column side-by-side) — tested at 375 / 768 / 1280 px
 

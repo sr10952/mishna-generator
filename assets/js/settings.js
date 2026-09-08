@@ -56,7 +56,7 @@ export const MAX_TEXT_LEN = 2000;
 
 /** The fixed project memorial dedication, rendered in the poster footer.
  *  Pure Hebrew (no Latin) so native-Hebrew posters stay Latin-free. */
-export const PROJECT_DEDICATION_HE = 'לע״נ אסתר בילא ע״ה בת שמשון צבי ני״ו';
+export const PROJECT_DEDICATION_HE = 'לע״נ אסתר בילא ע״ה בת יבלחט״א מו״ה שמשון צבי ני״ו';
 
 export function makeDefaults() {
   return {

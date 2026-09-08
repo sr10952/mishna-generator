@@ -432,6 +432,72 @@
    "prev": "",
    "warnings": [],
    "__synthetic_note": "Bekhorot 3:2 fixtures are real API captures; other refs are synthetic test data."
+  },
+  "Bartenura on Mishnah Bekhorot 4:2::hebrew|Torat-Emet": {
+   "versions": [
+    {
+     "status": "locked",
+     "priority": 3,
+     "license": "CC-BY-NC",
+     "versionNotes": "",
+     "language": "he",
+     "versionSource": "https://www.sefaria.org",
+     "versionTitle": "Torat-Emet",
+     "versionTitleInHebrew": "",
+     "actualLanguage": "he",
+     "languageFamilyName": "hebrew",
+     "isSource": true,
+     "isPrimary": true,
+     "direction": "rtl",
+     "text": [
+      "נוּלַד לוֹ מוּם בְּתוֹךְ שְׁנָתוֹ פי' שְׁנַת בְּכוֹרוֹת שֶׁהִי הָרִאשוֹנָה, מֻתָּר לְקַיְּמוֹ כָּל שְׁנֵים עָשָׂר חֹדֶשׁ וְלֹא יִזָּל אֶלָּא אַחַר שְׁנָתוֹ. לְאַחַר שְׁנָתוֹ אֵינוֹ רַשַּׁי לְקַיְּמוֹ אֶלָּא עַד שְׁלשִׁים יוֹם לְפָנֵי הַכּוֹהֵן וְאִם נָמַט הַזְּמַן וְהִזִּיקוֹ הֲרֵי זֶה עַל יָדוֹ:"
+     ]
+    }
+   ]
+  },
+  "Bartenura on Mishnah Bekhorot 4:3::hebrew|Torat-Emet": {
+   "versions": [
+    {
+     "status": "locked",
+     "priority": 3,
+     "license": "CC-BY-NC",
+     "versionNotes": "",
+     "language": "he",
+     "versionSource": "https://www.sefaria.org",
+     "versionTitle": "Torat-Emet",
+     "versionTitleInHebrew": "",
+     "actualLanguage": "he",
+     "languageFamilyName": "hebrew",
+     "isSource": true,
+     "isPrimary": true,
+     "direction": "rtl",
+     "text": [
+      "הַשּׁוֹחֵט הַבְּכוֹר וּמַרְאֶה אֶת מוּמוֹ פִּי' שֶׁנָּתַן סְמִיכָה וְשָׁחַט אַחַר כָּךְ וְהוֹדִיעַ אֶת מוּמוֹ, רַבִּי יְהוּדָה מַתִּיר דְּחֲזָקָתוֹ חֲזָקָה. רַבִּי מֵאִיר אומֵר הואִיל וְהוּא נִשְׁחַט שֶׁלֹּא עַל פִּי מֻמְחֶה אָסוּר בְּאֹכְלָן שֶׁלֹּא הָיָה שׁוֹאֵל אֶת הַמֻּמְחֶה לְהוֹצִיא אֶת מוּמוֹ מִכָּלְלֵי זְרִיעָה:"
+     ]
+    }
+   ]
+  },
+  "Bartenura on Mishnah Bekhorot 4:4::hebrew|Torat-Emet": {
+   "versions": [
+    {
+     "status": "locked",
+     "priority": 3,
+     "license": "CC-BY-NC",
+     "versionNotes": "",
+     "language": "he",
+     "versionSource": "https://www.sefaria.org",
+     "versionTitle": "Torat-Emet",
+     "versionTitleInHebrew": "",
+     "actualLanguage": "he",
+     "languageFamilyName": "hebrew",
+     "isSource": true,
+     "isPrimary": true,
+     "direction": "rtl",
+     "text": [
+      "מִי שֶׁאֵינוֹ מֻמְחֶה וְרָאָה אֶת הַבְּכוֹר וְנִשְׁחַט עַל פִּיו הֲרֵי זה יִקָּבֵר וְיִשַּׁלֵּם מִבֵּיתוֹ. דָּן אֶת הַדִּין וְכוּ' פִּי' אַף עַל פִּי שֶׁאֵינוֹ מֻמְחֶה אִם רָאָה מוּם בַּעַצְמוֹ שׁוֹאֵל אֶת הַמֻּמְחֶה וְאֵין לו לְהַאֲמִין עַל עַצְמוֹ. וְאִם הָיָה מֻמְחֶה לְבֵית דִּין פָּטוּר מִלְּשַׁלֵּם שֶׁאֵין חֶסְרוֹן שׁל בְּכוֹרוֹת מֵעֲשֶׂה בְּיָדוֹ:"
+     ]
+    }
+   ]
   }
  },
  "calendars": {

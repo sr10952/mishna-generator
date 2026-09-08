@@ -78,6 +78,9 @@ async function setStartDate(page, iso) {
 }
 
 async function clickBuild(page) {
+  // The app auto-builds on load and keeps the preview live, so first make
+  // sure no build is in flight, then drive a manual one and wait for it.
+  await waitFor(page, () => evalJS(page, () => !document.getElementById('buildBtn').disabled));
   await evalJS(page, () => document.getElementById('buildBtn').click());
   await waitFor(page, () => evalJS(page, () => !document.getElementById('actionsRow').classList.contains('hidden')
     && !document.getElementById('buildBtn').disabled));

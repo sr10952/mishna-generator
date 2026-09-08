@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Mishna Poster Generator · מחולל כרזות משנה</title>
-  <meta name="description" content="Free, offline Mishnah poster generator: print daily Mishnah learning posters in Hebrew with nikud and Bartenura commentary. One mishna per page or several per page, Letter / Legal / Tabloid / custom sizes, fonts, templates, and PDF export." />
+  <meta name="description" content="Free, offline Mishnah poster generator: print daily Mishnah learning posters with Hebrew nikud and Bartenura commentary. One mishna per page or several packed per page, Letter / Legal / Tabloid / custom sizes, margins, custom templates and PDF export — fully in the browser, works offline." />
   <meta name="robots" content="index, follow" />
   <meta name="application-name" content="Mishna Poster Generator" />
   <meta name="author" content="Mishna Poster Generator" />
@@ -68,402 +68,437 @@
       </div>
       <div class="topbar-actions">
         <a class="sefaria-credit" href="https://developers.sefaria.org" target="_blank" rel="noopener" data-i18n="poweredBy">Texts from Sefaria.org</a>
+        <button id="helpBtn" class="btn ghost circle" type="button" aria-haspopup="dialog" aria-controls="helpModal">?</button>
         <button id="langToggle" class="btn ghost" type="button" title="עברית / English">עברית</button>
       </div>
     </div>
   </header>
 
+  <!-- First-visit welcome banner (dismissed once, remembered) -->
+  <div class="intro-banner" id="introBanner" hidden>
+    <div class="intro-inner">
+      <p class="intro-text"><strong data-i18n="introTitle">New here?</strong> <span data-i18n="introText"></span></p>
+      <button class="btn small" id="introGotItBtn" type="button" data-i18n="introGotIt">Got it</button>
+    </div>
+  </div>
+
   <main class="layout">
     <!-- ===================== settings column ===================== -->
     <section class="form-panel" aria-label="Settings">
 
+      <!-- section tabs -->
+      <nav class="tab-bar" id="settingsTabs" role="tablist" aria-label="Settings sections">
+        <button class="tab-btn active" id="tabBtnSchedule" type="button" role="tab" aria-selected="true" aria-controls="tabSchedule" data-tab="schedule">
+          <span class="tab-ico" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg></span><span data-i18n="step1">Schedule</span>
+        </button>
+        <button class="tab-btn" id="tabBtnText" type="button" role="tab" aria-selected="false" aria-controls="tabText" data-tab="text" tabindex="-1">
+          <span class="tab-ico" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3.5C6.5 2.5 4.5 2.3 2 2.8v9.7c2.5-.5 4.5-.3 6 .7 1.5-1 3.5-1.2 6-.7V2.8c-2.5-.5-4.5-.3-6 .7z"/><path d="M8 3.5v9.7"/></svg></span><span data-i18n="step2">Content</span>
+        </button>
+        <button class="tab-btn" id="tabBtnDesign" type="button" role="tab" aria-selected="false" aria-controls="tabDesign" data-tab="design" tabindex="-1">
+          <span class="tab-ico" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.8c-3.4 0-6.2 2.6-6.2 5.9 0 3.2 2.8 5.9 6.2 5.9.9 0 1.5-.6 1.5-1.4 0-.4-.2-.7-.4-1-.2-.3-.4-.6-.4-1 0-.8.7-1.4 1.5-1.4h1.4c1.7 0 3-1.3 3-3 0-2.8-2.8-5-6.6-5z"/><circle cx="4.8" cy="6" r=".9" fill="currentColor" stroke="none"/><circle cx="8" cy="4.6" r=".9" fill="currentColor" stroke="none"/><circle cx="11.2" cy="6" r=".9" fill="currentColor" stroke="none"/></svg></span><span data-i18n="step3">Design</span>
+        </button>
+        <button class="tab-btn" id="tabBtnSaved" type="button" role="tab" aria-selected="false" aria-controls="tabSaved" data-tab="saved" tabindex="-1">
+          <span class="tab-ico" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v7M5.5 6.5 8 9l2.5-2.5"/><path d="M2.5 10.5v2A1.5 1.5 0 0 0 4 14h8a1.5 1.5 0 0 0 1.5-1.5v-2"/></svg></span><span data-i18n="tabSaved">Saved</span>
+        </button>
+      </nav>
+
       <!-- 1. schedule -->
-      <div class="card">
-        <h2 class="card-title"><span class="step-num">1</span><span data-i18n="step1">Schedule</span></h2>
+      <div class="tab-pane" id="tabSchedule" role="tabpanel" aria-labelledby="tabBtnSchedule">
+        <div class="card">
+          <div class="grid-2">
+            <label class="field">
+              <span class="field-label" data-i18n="startDate">First learning day</span>
+              <input type="date" id="startDate" />
+            </label>
+            <label class="field">
+              <span class="field-label" data-i18n="mishnaCount">Number of mishnas</span>
+              <input type="number" id="count" min="1" max="30" step="1" value="7" />
+            </label>
+          </div>
 
-        <div class="grid-2">
-          <label class="field">
-            <span class="field-label" data-i18n="startDate">First learning day</span>
-            <input type="date" id="startDate" />
-          </label>
-          <label class="field">
-            <span class="field-label" data-i18n="mishnaCount">Number of mishnas</span>
-            <input type="number" id="count" min="1" max="30" step="1" value="7" />
-          </label>
-        </div>
-
-        <div class="field">
-          <span class="field-label"><span data-i18n="learningDays">Days of the week you learn</span>
-            <span class="wd-actions">
-              <button type="button" class="linklike" id="wdAll" data-i18n="allDays">All</button>
-              <button type="button" class="linklike" id="wdNone" data-i18n="noDays">None</button>
+          <div class="field">
+            <span class="field-label"><span data-i18n="learningDays">Days of the week you learn</span>
+              <span class="wd-actions">
+                <button type="button" class="linklike" id="wdAll" data-i18n="allDays">All</button>
+                <button type="button" class="linklike" id="wdNone" data-i18n="noDays">None</button>
+              </span>
             </span>
-          </span>
-          <div class="weekday-row" id="weekdayRow" role="group"></div>
-        </div>
+            <div class="weekday-row" id="weekdayRow" role="group"></div>
+          </div>
 
-        <div class="grid-2">
-          <label class="field check">
-            <input type="checkbox" id="skipYomTov" checked />
-            <span data-i18n="skipYomTov">Skip Yom Tov (Jewish holidays)</span>
-          </label>
-          <label class="field">
-            <span class="field-label" data-i18n="diaspora">Diaspora calendar (2nd day of Yom Tov)</span>
-            <select id="diasporaSel">
-              <option value="diaspora" data-i18n="diaspora">Diaspora calendar (2nd day of Yom Tov)</option>
-              <option value="israel" data-i18n="israel">Israel calendar</option>
-            </select>
-          </label>
-        </div>
+          <div class="grid-2">
+            <label class="field check">
+              <input type="checkbox" id="skipYomTov" checked />
+              <span data-i18n="skipYomTov">Skip Yom Tov (Jewish holidays)</span>
+            </label>
+            <label class="field">
+              <span class="field-label" data-i18n="diaspora">Diaspora calendar (2nd day of Yom Tov)</span>
+              <select id="diasporaSel">
+                <option value="diaspora" data-i18n="diaspora">Diaspora calendar (2nd day of Yom Tov)</option>
+                <option value="israel" data-i18n="israel">Israel calendar</option>
+              </select>
+            </label>
+          </div>
 
-        <h3 class="sub-title" data-i18n="startRef">Starting mishna</h3>
-        <div class="grid-3">
-          <label class="field">
+          <h3 class="sub-title" data-i18n="startRef">Starting mishna</h3>
+          <div class="field">
             <span class="field-label" data-i18n="masechet">Tractate</span>
+            <input type="search" id="masechetFilter" data-i18n-ph="searchTractatesPh" placeholder="Search tractates…" autocomplete="off" />
             <select id="masechetSel"></select>
-          </label>
-          <label class="field">
-            <span class="field-label" data-i18n="chapter">Chapter</span>
-            <select id="chapterSel"></select>
-          </label>
-          <label class="field">
-            <span class="field-label" data-i18n="mishna">Mishna</span>
-            <select id="mishnaSel"></select>
-          </label>
+          </div>
+          <div class="grid-2">
+            <label class="field">
+              <span class="field-label" data-i18n="chapter">Chapter</span>
+              <select id="chapterSel"></select>
+            </label>
+            <label class="field">
+              <span class="field-label" data-i18n="mishna">Mishna</span>
+              <select id="mishnaSel"></select>
+            </label>
+          </div>
+          <p class="hint" id="refHint"></p>
         </div>
-        <p class="hint" id="refHint"></p>
       </div>
 
       <!-- 2. content -->
-      <div class="card">
-        <h2 class="card-title"><span class="step-num">2</span><span data-i18n="step2">Content</span></h2>
+      <div class="tab-pane" id="tabText" role="tabpanel" aria-labelledby="tabBtnText" hidden>
+        <div class="card">
+          <div class="grid-2">
+            <label class="field">
+              <span class="field-label" data-i18n="textLanguage">Mishna text language</span>
+              <select id="textLang">
+                <option value="he" data-i18n="hebrew">Hebrew</option>
+                <option value="en" data-i18n="english">English</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-label" data-i18n="nikud">Nikud (vowel points)</span>
+              <select id="nikudSel">
+                <option value="on" data-i18n="withNikud">With nikud</option>
+                <option value="off" data-i18n="withoutNikud">Without nikud</option>
+              </select>
+            </label>
+          </div>
 
-        <div class="grid-2">
-          <label class="field">
-            <span class="field-label" data-i18n="textLanguage">Mishna text language</span>
-            <select id="textLang">
+          <label class="field" id="hebrewVersionField">
+            <span class="field-label" data-i18n="hebrewVersion">Hebrew text edition</span>
+            <select id="hebrewVersionSel"></select>
+          </label>
+
+          <label class="field hidden" id="englishVersionField">
+            <span class="field-label" data-i18n="englishVersion">English translation</span>
+            <select id="englishVersionSel"></select>
+          </label>
+
+          <div class="field">
+            <span class="field-label" data-i18n="commentaries">Commentaries</span>
+            <div class="comm-toggles">
+              <label class="check chip"><input type="checkbox" id="commBartenura" checked /><span data-i18n="commentaryBartenura">Bartenura</span></label>
+              <label class="check chip"><input type="checkbox" id="commTosafotYT" /><span data-i18n="commentaryTosafotYT">Tosafot Yom Tov</span></label>
+              <label class="check chip"><input type="checkbox" id="commRambam" /><span data-i18n="commentaryRambam">Rambam's Commentary</span></label>
+            </div>
+          </div>
+
+          <label class="field" id="commLangField">
+            <span class="field-label" data-i18n="commentaryLang">Commentary language</span>
+            <select id="commLangSel">
               <option value="he" data-i18n="hebrew">Hebrew</option>
               <option value="en" data-i18n="english">English</option>
             </select>
           </label>
-          <label class="field">
-            <span class="field-label" data-i18n="nikud">Nikud (vowel points)</span>
-            <select id="nikudSel">
-              <option value="on" data-i18n="withNikud">With nikud</option>
-              <option value="off" data-i18n="withoutNikud">Without nikud</option>
-            </select>
+          <p class="hint" data-i18n-en="Bartenura is available with an English translation; other commentaries are Hebrew." data-i18n-he="לברטנורא קיים תרגום לאנגלית; שאר הפירושים בעברית."></p>
+
+          <label class="field check">
+            <input type="checkbox" id="showRef" checked />
+            <span data-i18n="showRef">Show mishna reference in the poster</span>
           </label>
-        </div>
 
-        <label class="field" id="hebrewVersionField">
-          <span class="field-label" data-i18n="hebrewVersion">Hebrew text edition</span>
-          <select id="hebrewVersionSel"></select>
-        </label>
-
-        <label class="field hidden" id="englishVersionField">
-          <span class="field-label" data-i18n="englishVersion">English translation</span>
-          <select id="englishVersionSel"></select>
-        </label>
-
-        <div class="field">
-          <span class="field-label" data-i18n="commentaries">Commentaries</span>
+          <h3 class="sub-title" data-i18n="infoLine">Poster info line</h3>
           <div class="comm-toggles">
-            <label class="check chip"><input type="checkbox" id="commBartenura" checked /><span data-i18n="commentaryBartenura">Bartenura</span></label>
-            <label class="check chip"><input type="checkbox" id="commTosafotYT" /><span data-i18n="commentaryTosafotYT">Tosafot Yom Tov</span></label>
-            <label class="check chip"><input type="checkbox" id="commRambam" /><span data-i18n="commentaryRambam">Rambam's Commentary</span></label>
+            <label class="check chip"><input type="checkbox" id="showDailyMishnaBadge" checked /><span data-i18n="showDailyMishnaBadge">Show Daily Mishna box</span></label>
+            <label class="check chip"><input type="checkbox" id="showDateInfo" checked /><span data-i18n="colHebDate">Hebrew date</span></label>
+            <label class="check chip"><input type="checkbox" id="showYomTovName" /><span data-i18n="showYomTovName">Show Yom Tov / holiday name when available</span></label>
+            <label class="check chip"><input type="checkbox" id="showParshaInfo" checked /><span data-i18n="colParsha">Parasha</span></label>
+            <label class="check chip"><input type="checkbox" id="showDayCountInfo" checked /><span data-i18n="dayCount">Day counter</span></label>
+            <label class="check chip"><input type="checkbox" id="showAttributionInfo" checked /><span data-i18n="attribution">Sefaria attribution</span></label>
+            <label class="check chip"><input type="checkbox" id="showProjectDedicationInfo" checked /><span data-i18n="projectDedication">Project dedication line</span></label>
           </div>
-        </div>
-
-        <label class="field" id="commLangField">
-          <span class="field-label" data-i18n="commentaryLang">Commentary language</span>
-          <select id="commLangSel">
-            <option value="he" data-i18n="hebrew">Hebrew</option>
-            <option value="en" data-i18n="english">English</option>
-          </select>
-        </label>
-        <p class="hint" data-i18n-en="Bartenura is available with an English translation; other commentaries are Hebrew." data-i18n-he="לברטנורא קיים תרגום לאנגלית; שאר הפירושים בעברית."></p>
-
-        <label class="field check">
-          <input type="checkbox" id="showRef" checked />
-          <span data-i18n="showRef">Show mishna reference in the poster</span>
-        </label>
-
-        <h3 class="sub-title" data-i18n="infoLine">Poster info line</h3>
-        <div class="comm-toggles">
-          <label class="check chip"><input type="checkbox" id="showDailyMishnaBadge" checked /><span data-i18n="showDailyMishnaBadge">Show Daily Mishna box</span></label>
-          <label class="check chip"><input type="checkbox" id="showDateInfo" checked /><span data-i18n="colHebDate">Hebrew date</span></label>
-          <label class="check chip"><input type="checkbox" id="showYomTovName" /><span data-i18n="showYomTovName">Show Yom Tov / holiday name when available</span></label>
-          <label class="check chip"><input type="checkbox" id="showParshaInfo" checked /><span data-i18n="colParsha">Parasha</span></label>
-          <label class="check chip"><input type="checkbox" id="showDayCountInfo" checked /><span data-i18n="dayCount">Day counter</span></label>
-          <label class="check chip"><input type="checkbox" id="showAttributionInfo" checked /><span data-i18n="attribution">Sefaria attribution</span></label>
-          <label class="check chip"><input type="checkbox" id="showProjectDedicationInfo" checked /><span data-i18n="projectDedication">Project dedication line</span></label>
-        </div>
-        <p class="hint" data-i18n="projectDedicationHint">Shows the memorial dedication at the bottom of every poster.</p>
-        <label class="field" id="dailyMishnaBadgeTextField">
-          <span class="field-label" data-i18n="dailyMishnaBadgeText">Daily Mishna box text</span>
-          <input type="text" id="dailyMishnaBadgeText" data-i18n-ph="dailyMishnaBadgeTextPh" placeholder="Leave blank for “Daily Mishnah”" maxlength="60" />
-        </label>
-        <div class="grid-2">
-          <label class="field">
-            <span class="field-label" data-i18n="weekdayDisplay">Weekday display</span>
-            <select id="weekdayDisplaySel">
-              <option value="auto" data-i18n="weekdayDisplayAuto">Match poster language</option>
-              <option value="he" data-i18n="weekdayDisplayHebrew">Hebrew</option>
-              <option value="yi" data-i18n="weekdayDisplayYiddish">Yiddish</option>
-              <option value="en" data-i18n="weekdayDisplayEnglish">English</option>
-              <option value="custom" data-i18n="weekdayDisplayCustom">Custom names</option>
-              <option value="none" data-i18n="weekdayDisplayNone">Hide weekday</option>
-            </select>
+          <p class="hint" data-i18n="projectDedicationHint">Shows the memorial dedication at the bottom of every poster.</p>
+          <label class="field" id="dailyMishnaBadgeTextField">
+            <span class="field-label" data-i18n="dailyMishnaBadgeText">Daily Mishna box text</span>
+            <input type="text" id="dailyMishnaBadgeText" data-i18n-ph="dailyMishnaBadgeTextPh" placeholder="Leave blank for “Daily Mishnah”" maxlength="60" />
           </label>
-          <label class="field" id="yomTovDisplayField" hidden>
-            <span class="field-label" data-i18n="yomTovDisplay">Yom Tov name style</span>
-            <select id="yomTovDisplaySel">
-              <option value="auto" data-i18n="yomTovDisplayAuto">Match weekday / poster style</option>
-              <option value="he" data-i18n="weekdayDisplayHebrew">Hebrew</option>
-              <option value="yi" data-i18n="weekdayDisplayYiddish">Yiddish</option>
-              <option value="en" data-i18n="weekdayDisplayEnglish">English</option>
-            </select>
+          <div class="grid-2">
+            <label class="field">
+              <span class="field-label" data-i18n="weekdayDisplay">Weekday display</span>
+              <select id="weekdayDisplaySel">
+                <option value="auto" data-i18n="weekdayDisplayAuto">Match poster language</option>
+                <option value="he" data-i18n="weekdayDisplayHebrew">Hebrew</option>
+                <option value="yi" data-i18n="weekdayDisplayYiddish">Yiddish</option>
+                <option value="en" data-i18n="weekdayDisplayEnglish">English</option>
+                <option value="custom" data-i18n="weekdayDisplayCustom">Custom names</option>
+                <option value="none" data-i18n="weekdayDisplayNone">Hide weekday</option>
+              </select>
+            </label>
+            <label class="field" id="yomTovDisplayField" hidden>
+              <span class="field-label" data-i18n="yomTovDisplay">Yom Tov name style</span>
+              <select id="yomTovDisplaySel">
+                <option value="auto" data-i18n="yomTovDisplayAuto">Match weekday / poster style</option>
+                <option value="he" data-i18n="weekdayDisplayHebrew">Hebrew</option>
+                <option value="yi" data-i18n="weekdayDisplayYiddish">Yiddish</option>
+                <option value="en" data-i18n="weekdayDisplayEnglish">English</option>
+              </select>
+            </label>
+          </div>
+          <label class="field" id="customWeekdayNamesField" hidden>
+            <span class="field-label" data-i18n="customWeekdayNames">Custom weekday names</span>
+            <input type="text" id="customWeekdayNames" dir="auto" data-i18n-ph="customWeekdayNamesPh" placeholder="Sun, Mon, Tue, Wed, Thu, Fri, Sat" maxlength="300" />
+            <span class="hint" data-i18n="customWeekdayNamesHint">Enter seven comma-separated names, Sunday through Shabbos.</span>
           </label>
         </div>
-        <label class="field" id="customWeekdayNamesField" hidden>
-          <span class="field-label" data-i18n="customWeekdayNames">Custom weekday names</span>
-          <input type="text" id="customWeekdayNames" dir="auto" data-i18n-ph="customWeekdayNamesPh" placeholder="Sun, Mon, Tue, Wed, Thu, Fri, Sat" maxlength="300" />
-          <span class="hint" data-i18n="customWeekdayNamesHint">Enter seven comma-separated names, Sunday through Shabbos.</span>
-        </label>
       </div>
 
       <!-- 3. design -->
-      <div class="card">
-        <h2 class="card-title"><span class="step-num">3</span><span data-i18n="step3">Design</span></h2>
+      <div class="tab-pane" id="tabDesign" role="tabpanel" aria-labelledby="tabBtnDesign" hidden>
+        <div class="card">
+          <div class="field">
+            <span class="field-label">
+              <span data-i18n="template">Template</span>
+              <button type="button" class="linklike" id="surpriseBtn">🎲 <span data-i18n="surprise">Surprise me</span></button>
+            </span>
+            <div class="template-grid" id="templateGrid" role="radiogroup"></div>
+          </div>
 
-        <div class="field">
-          <span class="field-label">
-            <span data-i18n="template">Template</span>
-            <button type="button" class="linklike" id="surpriseBtn">🎲 <span data-i18n="surprise">Surprise me</span></button>
-          </span>
-          <div class="template-grid" id="templateGrid" role="radiogroup"></div>
-        </div>
-
-        <div class="grid-2">
-          <label class="field">
-            <span class="field-label" data-i18n="posterFont">Poster font</span>
-            <select id="fontSel"></select>
-          </label>
-          <label class="field">
-            <span class="field-label" data-i18n="commentaryFont">Commentary font</span>
-            <select id="commentaryFontSel"></select>
-          </label>
-        </div>
-
-        <div class="grid-2">
-          <label class="field">
-            <span class="field-label" data-i18n="pageSize">Page size</span>
-            <select id="pageSizeSel">
-              <option value="letter" data-i18n="pageSizeLetter">Letter (8.5 × 11 in)</option>
-              <option value="legal" data-i18n="pageSizeLegal">Legal (8.5 × 14 in)</option>
-              <option value="tabloid" data-i18n="pageSizeTabloid">Tabloid (11 × 17 in)</option>
-              <option value="custom" data-i18n="pageSizeCustom">Custom size</option>
-            </select>
-          </label>
-          <label class="field">
-            <span class="field-label" data-i18n="accentColor">Accent color</span>
-            <input type="color" id="accentColor" value="#8a6d3b" class="color-input" />
-          </label>
-        </div>
-
-        <div class="custom-page-size-fields" id="customPageSizeFields" hidden>
           <div class="grid-2">
             <label class="field">
-              <span class="field-label" data-i18n="customPageWidth">Width (in)</span>
-              <input type="number" id="customPageWidth" min="5" max="17" step="0.01" inputmode="decimal" />
+              <span class="field-label" data-i18n="posterFont">Poster font</span>
+              <select id="fontSel"></select>
             </label>
             <label class="field">
-              <span class="field-label" data-i18n="customPageHeight">Height (in)</span>
-              <input type="number" id="customPageHeight" min="5" max="17" step="0.01" inputmode="decimal" />
+              <span class="field-label" data-i18n="commentaryFont">Commentary font</span>
+              <select id="commentaryFontSel"></select>
             </label>
           </div>
-          <p class="hint" data-i18n="customPageSizeHint">Choose dimensions from 5 to 17 inches. Width and height may be swapped for landscape.</p>
-        </div>
 
-        <!-- layout: arrangement, typography limits, margins, alignment -->
-        <h3 class="sub-title" data-i18n="layoutTitle">Layout</h3>
-
-        <div class="grid-2">
-          <label class="field">
-            <span class="field-label" data-i18n="layoutMode">Mishnas per page</span>
-            <select id="layoutModeSel">
-              <option value="single" data-i18n="layoutModeSingle">One mishna per page (stretch up to the maximum font size)</option>
-              <option value="fill" data-i18n="layoutModeFill">Pack as many mishnas per page as fit</option>
-            </select>
-          </label>
-          <label class="field">
-            <span class="field-label" data-i18n="textAlign">Text alignment</span>
-            <select id="textAlignSel">
-              <option value="auto" data-i18n="textAlignAuto">Right / left (match the text language)</option>
-              <option value="justify" data-i18n="textAlignJustify">Justify (flush both edges)</option>
-              <option value="center" data-i18n="textAlignCenter">Centered</option>
-            </select>
-          </label>
-        </div>
-        <p class="hint" data-i18n="layoutModeHint">“Pack” starts each page with the smallest allowed mishna font and only breaks to a new page when the next mishna no longer fits; “One per page” enlarges the text to fill the page up to the maximum size.</p>
-
-        <div class="grid-2">
-          <label class="field">
-            <span class="field-label" data-i18n="minMishnaFont">Floor font size (px)</span>
-            <input type="number" id="minMishnaFontPx" min="11" max="96" step="1" inputmode="numeric" value="14" />
-          </label>
-          <label class="field">
-            <span class="field-label" data-i18n="maxMishnaFont">Ceiling font size (px)</span>
-            <input type="number" id="maxMishnaFontPx" min="24" max="200" step="1" inputmode="numeric" value="64" />
-          </label>
-        </div>
-        <p class="hint" data-i18n="fontLimitsHint">Bounds for the mishna text: packed pages shrink toward the floor; single pages grow toward the ceiling.</p>
-
-        <label class="field">
-          <span class="field-label" data-i18n="commLayout">Commentary layout</span>
-          <select id="commLayoutSel">
-            <option value="flow" data-i18n="commLayoutFlow">Flowing (each דיבור המתחיל continues inline — saves space)</option>
-            <option value="blocks" data-i18n="commLayoutBlocks">Block lines (each דיבור המתחיל starts its own line)</option>
-          </select>
-        </label>
-
-        <div class="field">
-          <span class="field-label"><span data-i18n="margins">Text margins (distance from each page edge)</span></span>
-          <div class="margin-grid">
-            <label class="margin-cell">
-              <span data-i18n="marginTop">Top</span>
-              <span class="margin-input-row"><input type="number" id="marginTop" min="0" max="2" step="0.05" inputmode="decimal" value="0.5" aria-label="Top margin in inches" /><span class="margin-unit">in</span></span>
+          <div class="grid-2">
+            <label class="field">
+              <span class="field-label" data-i18n="pageSize">Page size</span>
+              <select id="pageSizeSel">
+                <option value="letter" data-i18n="pageSizeLetter">Letter (8.5 × 11 in)</option>
+                <option value="legal" data-i18n="pageSizeLegal">Legal (8.5 × 14 in)</option>
+                <option value="tabloid" data-i18n="pageSizeTabloid">Tabloid (11 × 17 in)</option>
+                <option value="custom" data-i18n="pageSizeCustom">Custom size</option>
+              </select>
             </label>
-            <label class="margin-cell">
-              <span data-i18n="marginRight">Right</span>
-              <span class="margin-input-row"><input type="number" id="marginRight" min="0" max="2" step="0.05" inputmode="decimal" value="0.6" aria-label="Right margin in inches" /><span class="margin-unit">in</span></span>
-            </label>
-            <label class="margin-cell">
-              <span data-i18n="marginBottom">Bottom</span>
-              <span class="margin-input-row"><input type="number" id="marginBottom" min="0" max="2" step="0.05" inputmode="decimal" value="0.5" aria-label="Bottom margin in inches" /><span class="margin-unit">in</span></span>
-            </label>
-            <label class="margin-cell">
-              <span data-i18n="marginLeft">Left</span>
-              <span class="margin-input-row"><input type="number" id="marginLeft" min="0" max="2" step="0.05" inputmode="decimal" value="0.6" aria-label="Left margin in inches" /><span class="margin-unit">in</span></span>
+            <label class="field">
+              <span class="field-label" data-i18n="accentColor">Accent color</span>
+              <div class="accent-row">
+                <input type="color" id="accentColor" value="#8a6d3b" class="color-input" />
+                <div class="accent-presets" id="accentPresets" role="group" aria-label="Quick picks">
+                  <button type="button" class="accent-swatch" data-accent="#8a6d3b" style="background:#8a6d3b" aria-label="#8a6d3b"></button>
+                  <button type="button" class="accent-swatch" data-accent="#1e3a5f" style="background:#1e3a5f" aria-label="#1e3a5f"></button>
+                  <button type="button" class="accent-swatch" data-accent="#c9a227" style="background:#c9a227" aria-label="#c9a227"></button>
+                  <button type="button" class="accent-swatch" data-accent="#111111" style="background:#111111" aria-label="#111111"></button>
+                  <button type="button" class="accent-swatch" data-accent="#15803d" style="background:#15803d" aria-label="#15803d"></button>
+                  <button type="button" class="accent-swatch" data-accent="#9f1239" style="background:#9f1239" aria-label="#9f1239"></button>
+                  <button type="button" class="accent-swatch" data-accent="#6d28d9" style="background:#6d28d9" aria-label="#6d28d9"></button>
+                </div>
+              </div>
             </label>
           </div>
-          <p class="hint" data-i18n="marginsHint">Inches of blank space between the page edge and the text. Use larger margins to keep text clear of pre-printed borders or artwork drawn on the template.</p>
-        </div>
 
-        <label class="field">
-          <span class="field-label" data-i18n="institution">Institution / letterhead name</span>
-          <input type="text" id="institution" data-i18n-ph="institutionPh" placeholder="e.g. Congregation Bnei Torah" maxlength="80" />
-        </label>
-        <label class="field">
-          <span class="field-label" data-i18n="dedication">Dedication line (optional)</span>
-          <input type="text" id="dedication" data-i18n-ph="dedicationPh" placeholder="e.g. In loving memory of ..." maxlength="120" />
-        </label>
-        <label class="field">
-          <span class="field-label" data-i18n="footerNote">Footer line (optional)</span>
-          <input type="text" id="footerNote" data-i18n-ph="footerNotePh" placeholder="e.g. Questions? info@shul.org" maxlength="120" />
-        </label>
-
-        <div class="grid-2">
-          <div class="field">
-            <span class="field-label" data-i18n="letterheadImg">Letterhead / logo image</span>
-            <div class="file-row">
-              <input type="file" id="logoFile" accept="image/png,image/jpeg,image/webp,image/svg+xml" />
-              <button type="button" class="btn ghost small hidden" id="logoRemove" data-i18n="remove">Remove</button>
+          <div class="custom-page-size-fields" id="customPageSizeFields" hidden>
+            <div class="grid-2">
+              <label class="field">
+                <span class="field-label" data-i18n="customPageWidth">Width (in)</span>
+                <input type="number" id="customPageWidth" min="5" max="17" step="0.01" inputmode="decimal" />
+              </label>
+              <label class="field">
+                <span class="field-label" data-i18n="customPageHeight">Height (in)</span>
+                <input type="number" id="customPageHeight" min="5" max="17" step="0.01" inputmode="decimal" />
+              </label>
             </div>
-            <img id="logoPreview" class="upload-preview hidden" alt="" />
+            <p class="hint" data-i18n="customPageSizeHint">Choose dimensions from 5 to 17 inches. Width and height may be swapped for landscape.</p>
           </div>
-          <div class="field">
-            <span class="field-label" data-i18n="bgImg">Full page background image</span>
-            <div class="file-row">
-              <input type="file" id="bgFile" accept="image/png,image/jpeg,image/webp" />
-              <button type="button" class="btn ghost small hidden" id="bgRemove" data-i18n="remove">Remove</button>
-            </div>
-            <img id="bgPreview" class="upload-preview hidden" alt="" />
+
+          <!-- layout: arrangement, typography limits, margins, alignment -->
+          <h3 class="sub-title" data-i18n="layoutTitle">Layout</h3>
+
+          <div class="grid-2">
+            <label class="field">
+              <span class="field-label" data-i18n="layoutMode">Mishnas per page</span>
+              <select id="layoutModeSel">
+                <option value="single" data-i18n="layoutModeSingle">One mishna per page (stretch up to the maximum font size)</option>
+                <option value="fill" data-i18n="layoutModeFill">Pack as many mishnas per page as fit</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-label" data-i18n="textAlign">Text alignment</span>
+              <select id="textAlignSel">
+                <option value="auto" data-i18n="textAlignAuto">Right / left (match the text language)</option>
+                <option value="justify" data-i18n="textAlignJustify">Justify (flush both edges)</option>
+                <option value="center" data-i18n="textAlignCenter">Centered</option>
+              </select>
+            </label>
           </div>
-        </div>
+          <p class="hint" data-i18n="layoutModeHint">“Pack” starts each page with the smallest allowed mishna font and only breaks to a new page when the next mishna no longer fits; “One per page” enlarges the text to fill the page up to the maximum size.</p>
 
-        <label class="field" id="overlayField">
-          <span class="field-label"><span data-i18n="overlay">Text protection overlay</span> <span id="overlayVal" class="range-val"></span></span>
-          <input type="range" id="bgOverlay" min="0.4" max="1" step="0.05" value="0.85" />
-        </label>
-      </div>
-
-      <!-- 3b. profiles & backup -->
-      <div class="card" id="profilesCard">
-        <h2 class="card-title"><span class="step-num" aria-hidden="true">★</span><span data-i18n="profilesTitle">Saved profiles &amp; backup</span></h2>
-        <p class="hint" data-i18n="profilesHint">Save the whole configuration under a name, then reload it any time.</p>
-
-        <div class="field">
-          <label class="field-label" for="profileNameInput" data-i18n="profileNameLabel">Profile name</label>
-          <div class="profile-save-row">
-            <input type="text" id="profileNameInput" maxlength="60" data-i18n-ph="profileNamePh" placeholder="Profile name" autocomplete="off" />
-            <button type="button" class="btn primary small" id="profileSaveBtn" data-i18n="profileSave">Save current settings</button>
+          <div class="grid-2">
+            <label class="field">
+              <span class="field-label" data-i18n="minMishnaFont">Floor font size (px)</span>
+              <input type="number" id="minMishnaFontPx" min="11" max="96" step="1" inputmode="numeric" value="14" />
+            </label>
+            <label class="field">
+              <span class="field-label" data-i18n="maxMishnaFont">Ceiling font size (px)</span>
+              <input type="number" id="maxMishnaFontPx" min="24" max="200" step="1" inputmode="numeric" value="64" />
+            </label>
           </div>
-        </div>
+          <p class="hint" data-i18n="fontLimitsHint">Bounds for the mishna text: packed pages shrink toward the floor; single pages grow toward the ceiling.</p>
 
-        <div class="field">
-          <label class="field-label" for="profileSelect" data-i18n="profileSelectLabel">Saved profiles</label>
-          <select id="profileSelect" aria-describedby="profileCountLabel"></select>
-          <div class="profile-actions">
-            <button type="button" class="btn small" id="profileLoadBtn" data-i18n="profileLoad">Load</button>
-            <button type="button" class="btn ghost small" id="profileRenameBtn" data-i18n="profileRename">Rename</button>
-            <button type="button" class="btn ghost small danger" id="profileDeleteBtn" data-i18n="profileDelete">Delete</button>
-          </div>
-          <p class="hint" id="profileCountLabel" role="status" aria-live="polite"></p>
-        </div>
-
-        <div class="field">
-          <span class="field-label" data-i18n="backupExport">Export backup (JSON)</span>
-          <div class="profile-actions">
-            <button type="button" class="btn small" id="backupExportBtn" data-i18n="backupExport">Export backup (JSON)</button>
-            <button type="button" class="btn small" id="backupImportBtn" data-i18n="backupImport">Import backup (JSON)</button>
-            <input type="file" id="backupImportFile" accept="application/json,.json" hidden />
-          </div>
-          <p class="hint" data-i18n="backupHint">Backups are plain JSON with your settings and profiles — no images, no tracking.</p>
-        </div>
-        <p class="status-line" id="profileStatus" role="status" aria-live="polite"></p>
-      </div>
-
-      <!-- 4. generate -->
-      <div class="card" id="generateCard">
-        <h2 class="card-title"><span class="step-num">4</span><span data-i18n="step4">Generate</span></h2>
-
-        <button id="buildBtn" class="btn primary big" type="button" data-i18n="build">Load texts &amp; preview</button>
-
-        <div class="progress-row hidden" id="progressRow">
-          <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
-          <span class="progress-label" id="progressLabel"></span>
-        </div>
-
-        <p class="status-line" id="statusLine" role="status"></p>
-
-        <div id="scheduleWrap" class="hidden">
-          <h3 class="sub-title" data-i18n="scheduleTitle">Learning schedule</h3>
-          <div class="table-wrap">
-            <table class="schedule-table" id="scheduleTable">
-              <thead></thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="actions-row hidden" id="actionsRow">
-          <div class="field">
-            <span class="field-label" data-i18n="quality">PDF quality</span>
-            <select id="qualitySel">
-              <option value="high" data-i18n="qualityHigh">Print (288 DPI)</option>
-              <option value="draft" data-i18n="qualityDraft">Screen (192 DPI)</option>
-              <option value="ultra" data-i18n="qualityUltra">Poster (384 DPI)</option>
+          <label class="field">
+            <span class="field-label" data-i18n="commLayout">Commentary layout</span>
+            <select id="commLayoutSel">
+              <option value="flow" data-i18n="commLayoutFlow">Flowing (each דיבור המתחיל continues inline — saves space)</option>
+              <option value="blocks" data-i18n="commLayoutBlocks">Block lines (each דיבור המתחיל starts its own line)</option>
             </select>
+          </label>
+
+          <div class="field">
+            <span class="field-label"><span data-i18n="margins">Text margins (distance from each page edge)</span></span>
+            <div class="margin-grid">
+              <label class="margin-cell">
+                <span data-i18n="marginTop">Top</span>
+                <span class="margin-input-row"><input type="number" id="marginTop" min="0" max="2" step="0.05" inputmode="decimal" value="0.5" aria-label="Top margin in inches" /><span class="margin-unit">in</span></span>
+              </label>
+              <label class="margin-cell">
+                <span data-i18n="marginRight">Right</span>
+                <span class="margin-input-row"><input type="number" id="marginRight" min="0" max="2" step="0.05" inputmode="decimal" value="0.6" aria-label="Right margin in inches" /><span class="margin-unit">in</span></span>
+              </label>
+              <label class="margin-cell">
+                <span data-i18n="marginBottom">Bottom</span>
+                <span class="margin-input-row"><input type="number" id="marginBottom" min="0" max="2" step="0.05" inputmode="decimal" value="0.5" aria-label="Bottom margin in inches" /><span class="margin-unit">in</span></span>
+              </label>
+              <label class="margin-cell">
+                <span data-i18n="marginLeft">Left</span>
+                <span class="margin-input-row"><input type="number" id="marginLeft" min="0" max="2" step="0.05" inputmode="decimal" value="0.6" aria-label="Left margin in inches" /><span class="margin-unit">in</span></span>
+              </label>
+            </div>
+            <p class="hint" data-i18n="marginsHint">Inches of blank space between the page edge and the text. Use larger margins to keep text clear of pre-printed borders or artwork drawn on the template.</p>
           </div>
-          <div class="action-buttons">
-            <button id="downloadPdfBtn" class="btn primary big" type="button" data-i18n="downloadPdf">Download PDF</button>
-            <button id="downloadPngBtn" class="btn" type="button" data-i18n="downloadPng">PNG (this page)</button>
-            <button id="printBtn" class="btn" type="button" data-i18n="print">Print</button>
+
+          <label class="field">
+            <span class="field-label" data-i18n="institution">Institution / letterhead name</span>
+            <input type="text" id="institution" data-i18n-ph="institutionPh" placeholder="e.g. Congregation Bnei Torah" maxlength="80" />
+          </label>
+          <label class="field">
+            <span class="field-label" data-i18n="dedication">Dedication line (optional)</span>
+            <input type="text" id="dedication" data-i18n-ph="dedicationPh" placeholder="e.g. In loving memory of ..." maxlength="120" />
+          </label>
+          <label class="field">
+            <span class="field-label" data-i18n="footerNote">Footer line (optional)</span>
+            <input type="text" id="footerNote" data-i18n-ph="footerNotePh" placeholder="e.g. Questions? info@shul.org" maxlength="120" />
+          </label>
+
+          <div class="grid-2">
+            <div class="field">
+              <span class="field-label" data-i18n="letterheadImg">Letterhead / logo image</span>
+              <div class="file-row">
+                <input type="file" id="logoFile" accept="image/png,image/jpeg,image/webp,image/svg+xml" />
+                <button type="button" class="btn ghost small hidden" id="logoRemove" data-i18n="remove">Remove</button>
+              </div>
+              <img id="logoPreview" class="upload-preview hidden" alt="" />
+            </div>
+            <div class="field">
+              <span class="field-label" data-i18n="bgImg">Full page background image</span>
+              <div class="file-row">
+                <input type="file" id="bgFile" accept="image/png,image/jpeg,image/webp" />
+                <button type="button" class="btn ghost small hidden" id="bgRemove" data-i18n="remove">Remove</button>
+              </div>
+              <img id="bgPreview" class="upload-preview hidden" alt="" />
+            </div>
+          </div>
+
+          <label class="field" id="overlayField">
+            <span class="field-label"><span data-i18n="overlay">Text protection overlay</span> <span id="overlayVal" class="range-val"></span></span>
+            <input type="range" id="bgOverlay" min="0.4" max="1" step="0.05" value="0.85" />
+          </label>
+        </div>
+      </div>
+
+      <!-- 4. saved profiles & backup -->
+      <div class="tab-pane" id="tabSaved" role="tabpanel" aria-labelledby="tabBtnSaved" hidden>
+        <div class="card" id="profilesCard">
+          <p class="hint card-hint" data-i18n="profilesHint">Save the whole configuration under a name, then reload it any time.</p>
+
+          <div class="field">
+            <label class="field-label" for="profileNameInput" data-i18n="profileNameLabel">Profile name</label>
+            <div class="profile-save-row">
+              <input type="text" id="profileNameInput" maxlength="60" data-i18n-ph="profileNamePh" placeholder="Profile name" autocomplete="off" />
+              <button type="button" class="btn primary small" id="profileSaveBtn" data-i18n="profileSave">Save current settings</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="field-label" for="profileSelect" data-i18n="profileSelectLabel">Saved profiles</label>
+            <select id="profileSelect" aria-describedby="profileCountLabel"></select>
+            <div class="profile-actions">
+              <button type="button" class="btn small" id="profileLoadBtn" data-i18n="profileLoad">Load</button>
+              <button type="button" class="btn ghost small" id="profileRenameBtn" data-i18n="profileRename">Rename</button>
+              <button type="button" class="btn ghost small danger" id="profileDeleteBtn" data-i18n="profileDelete">Delete</button>
+            </div>
+            <p class="hint" id="profileCountLabel" role="status" aria-live="polite"></p>
+          </div>
+
+          <div class="field">
+            <span class="field-label" data-i18n="backupExport">Export backup (JSON)</span>
+            <div class="profile-actions">
+              <button type="button" class="btn small" id="backupExportBtn" data-i18n="backupExport">Export backup (JSON)</button>
+              <button type="button" class="btn small" id="backupImportBtn" data-i18n="backupImport">Import backup (JSON)</button>
+              <input type="file" id="backupImportFile" accept="application/json,.json" hidden />
+            </div>
+            <p class="hint" data-i18n="backupHint">Backups are plain JSON with your settings and profiles — no images, no tracking.</p>
+          </div>
+
+          <div class="field">
+            <span class="field-label" data-i18n="reset">Restore defaults</span>
+            <div class="profile-actions">
+              <button type="button" class="btn ghost small danger" id="resetBtn" data-i18n="reset">Restore defaults</button>
+            </div>
+            <p class="hint" data-i18n="resetConfirm">Replace your current settings with the defaults? This also removes uploaded logo and background images.</p>
+          </div>
+          <p class="status-line" id="profileStatus" role="status" aria-live="polite"></p>
+        </div>
+      </div>
+
+      <!-- generate dock: summary + primary action + status, always in reach -->
+      <div class="action-dock" id="actionDock">
+        <p class="dock-summary" id="actionSummary"></p>
+        <div class="dock-main">
+          <button id="buildBtn" class="btn primary big" type="button" data-i18n="build">Generate posters</button>
+          <div class="dock-side">
+            <div class="progress-row hidden" id="progressRow">
+              <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
+              <span class="progress-label" id="progressLabel"></span>
+            </div>
+            <p class="status-line" id="statusLine" role="status"></p>
           </div>
         </div>
-        <p class="hint" id="warnLine"></p>
+        <p class="dock-note" data-i18n="autoNote">The preview updates live as you change settings.</p>
       </div>
+
+      <!-- learning schedule (appears after the first build) -->
+      <section class="card schedule-card" id="scheduleWrap" hidden>
+        <div class="schedule-head">
+          <h3 class="sub-title no-mt" data-i18n="scheduleTitle">Learning schedule</h3>
+          <button type="button" class="linklike" id="scheduleToggle" data-i18n="collapse">Collapse</button>
+        </div>
+        <div class="table-wrap" id="scheduleTableWrap">
+          <table class="schedule-table" id="scheduleTable">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
     </section>
 
     <!-- ===================== preview column ===================== -->
@@ -480,12 +515,35 @@
         <div class="preview-canvas" id="previewCanvas">
           <div class="preview-empty" id="previewEmpty">
             <div class="preview-empty-inner">
-              <div class="pe-mark">מ</div>
-              <p data-i18n="appSubtitle">Daily Mishnah learning posters — Hebrew with nikud and Bartenura</p>
+              <div class="pe-frame" aria-hidden="true">
+                <span class="pe-mark">מ</span>
+                <span class="pe-line w60"></span>
+                <span class="pe-line w90"></span>
+                <span class="pe-line w80"></span>
+                <span class="pe-line w40"></span>
+              </div>
+              <h3 data-i18n="previewEmptyTitle">Your posters appear here</h3>
+              <p data-i18n="previewEmptyHint">Press “Generate posters” — or just start tweaking; the preview updates live.</p>
             </div>
           </div>
         </div>
         <p class="preview-note" id="previewNote"></p>
+        <div class="export-bar hidden" id="actionsRow">
+          <label class="field export-quality">
+            <span class="field-label" data-i18n="quality">PDF quality</span>
+            <select id="qualitySel">
+              <option value="high" data-i18n="qualityHigh">Print (288 DPI)</option>
+              <option value="draft" data-i18n="qualityDraft">Screen (192 DPI)</option>
+              <option value="ultra" data-i18n="qualityUltra">Poster (384 DPI)</option>
+            </select>
+          </label>
+          <div class="action-buttons">
+            <button id="downloadPdfBtn" class="btn primary big" type="button" data-i18n="downloadPdf">Download PDF</button>
+            <button id="downloadPngBtn" class="btn" type="button" data-i18n="downloadPng">PNG (this page)</button>
+            <button id="printBtn" class="btn" type="button" data-i18n="print">Print</button>
+          </div>
+        </div>
+        <p class="hint" id="warnLine"></p>
       </div>
     </section>
   </main>
@@ -517,8 +575,24 @@
     </div>
   </div>
 
+  <!-- How-it-works help dialog -->
+  <div class="modal-backdrop" id="helpBackdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="helpTitleEl" id="helpModal">
+      <h2 class="modal-title" id="helpTitleEl" data-i18n="helpTitle">How it works</h2>
+      <ol class="help-steps">
+        <li data-i18n="helpStep1">Schedule — choose the starting mishna, how many days, and which days of the week you learn.</li>
+        <li data-i18n="helpStep2">Text &amp; Design — language, nikud, commentaries, template, fonts, page size and layout.</li>
+        <li data-i18n="helpStep3">Generate — then download a print-ready PDF, save a PNG of any page, or print directly.</li>
+      </ol>
+      <p class="hint" data-i18n="helpSaved">Your settings save automatically in this browser. Keep named presets or export a backup any time from the Saved tab.</p>
+      <div class="confirm-actions">
+        <button type="button" class="btn primary" id="helpClose" data-i18n="helpClose">Close</button>
+      </div>
+    </div>
+  </div>
+
   <div class="mobile-tabs" id="mobileTabs">
-    <button type="button" class="mobile-tab active" data-tab="settings" data-i18n="step1">Settings</button>
+    <button type="button" class="mobile-tab active" data-tab="settings" data-i18n="settingsTab">Settings</button>
     <button type="button" class="mobile-tab" data-tab="preview" data-i18n="previewTitle">Preview</button>
   </div>
 

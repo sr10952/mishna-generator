@@ -27,6 +27,8 @@ import {
  * =========================================================================*/
 
 const LS_KEY = 'mishna-poster-settings-v1';
+const UI_KEY = 'mishna-poster-ui-v1';      // non-settings UI prefs (active tab, ...)
+const INTRO_KEY = 'mishna-poster-intro-v1'; // first-visit banner dismissal
 
 let settings = loadSettings();
 let profiles = readProfiles({ read: (k) => localStorage.getItem(k) });
@@ -36,6 +38,24 @@ let stagePages = [];      // built poster elements (render stage)
 let pageIndex = 0;
 let contentHash = '';     // detects schedule/content changes => stale state
 let entryToPage = [];     // schedule entry index -> stage page index (-1 = no page)
+let building = false;     // a build is in flight (builds are serialized)
+let queuedBuild = false;  // a build was requested while another ran
+let builtOnce = false;    // at least one build finished this session
+let lastBuildHash = '';   // content hash of the last finished build
+let autoTimer = null;     // debounced live-preview rebuild
+let stale = false;
+let scheduleCollapsed = loadUIState().scheduleCollapsed === true;
+
+/** Non-settings UI preferences (active tab, schedule collapse, ...). */
+function loadUIState() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(UI_KEY));
+    return raw && typeof raw === 'object' ? raw : {};
+  } catch { return {}; }
+}
+function saveUIState(patch) {
+  try { localStorage.setItem(UI_KEY, JSON.stringify({ ...loadUIState(), ...patch })); } catch { /* ignore */ }
+}
 
 function loadSettings() {
   // normalizeSettings performs the forward/backward-compatible deep merge onto
@@ -108,6 +128,7 @@ function syncPageSize() {
     document.head.appendChild(style);
   }
   style.textContent = `@media print { @page { size: ${pageSize.printFormat}; margin: 0; } }`;
+  fitPreviewWidth();
   return pageSize;
 }
 
@@ -117,15 +138,52 @@ function formatPageInches(value) {
 
 function pageSizeLabel(page) {
   const size = getPageSizeForElement(page);
-  if (size.id === 'legal') return t('pageSizeLegal');
-  if (size.id === 'tabloid') return t('pageSizeTabloid');
+  return sizeLabel(size);
+}
+
+function sizeLabel(size) {
   if (size.id === 'custom') {
     return t('pageSizeCustomPreview', {
       width: formatPageInches(size.widthIn),
       height: formatPageInches(size.heightIn),
     });
   }
-  return t('pageSizeLetter');
+  return t({ letter: 'pageSizeLetter', legal: 'pageSizeLegal', tabloid: 'pageSizeTabloid' }[size.id]);
+}
+
+/** One-line summary in the generate dock: days · starting mishna · page size. */
+function updateDockSummary() {
+  const line = $('actionSummary');
+  if (!line) return;
+  if (!schedule || !schedule.entries.length) { line.textContent = ''; return; }
+  const he = getLang() === 'he';
+  const first = schedule.entries[0];
+  const m = findMasechet(first.book);
+  const ref = he
+    ? `${masechetHeName(m)} ${gematria(first.chapter)}:${gematria(first.mishna)}`
+    : `${m ? m.title : first.book} ${first.chapter}:${first.mishna}`;
+  const days = t('summaryDays', { n: he ? gematria(schedule.entries.length) : schedule.entries.length });
+  line.textContent = `${days} · ${t('summaryStarts', { ref })} · ${sizeLabel(getPageSize(settings.design))}`;
+}
+
+/** Keep the whole preview card (poster + export bar) inside the viewport on
+ *  desktop by capping the canvas width to the height that is actually left. */
+function fitPreviewWidth() {
+  const canvas = $('previewCanvas');
+  const card = canvas && canvas.closest ? canvas.closest('.preview-card') : null;
+  if (!canvas || !card) return;
+  const pageSize = getPageSize(settings.design);
+  const ar = pageSize.width / pageSize.height;
+  const availW = card.clientWidth - 32; // card padding
+  let w = availW;
+  if (window.innerWidth > 1080) {
+    // head + note + export bar + gaps + card chrome
+    const reserved = 250 + ($('actionsRow').classList.contains('hidden') ? 55 : 0);
+    const availH = Math.max(320, window.innerHeight - 32 - reserved);
+    w = Math.min(availW, availH * ar);
+  }
+  const px = String(Math.max(240, Math.floor(w))) + 'px';
+  if (canvas.style.width !== px) canvas.style.width = px;
 }
 
 /* ===========================================================================
@@ -147,12 +205,17 @@ function applyI18n() {
     node.textContent = he ? node.dataset.i18nHe : node.dataset.i18nEn;
   });
   $('langToggle').textContent = t('langToggle');
+  $('helpBtn').setAttribute('aria-label', t('helpAria'));
+  $('helpBtn').title = t('helpAria');
   buildWeekdayChips();
   renderTemplateOptions();
   renderFontOptions();
   renderVersionOptions();
   refreshRefSelectors();
   updateRefHint();
+  applyScheduleToggle();
+  updateDockSummary();
+  syncAccentPresets();
   updateScheduleTable();
   updatePreviewChrome();
   if ($('profileSelect')) renderProfiles();
@@ -194,9 +257,19 @@ function renderTemplateOptions() {
     const pal = tpl.palette || {};
     const bg = pal.bg || tplBg(tpl.id);
     const accent = pal.accent || tpl.accent;
-    const frame = pal.frame || tplFrame(tpl.id);
-    btn.innerHTML = `<span class="tpl-swatch" style="background:${bg};border:3px ${frame} ${accent}"></span>
-      <span>${getLang() === 'he' ? tpl.labelHe : tpl.labelEn}</span>`;
+    const frameColor = pal.frame || accent; // palette carries colors; built-ins frame with the accent
+    const frameStyle = tpl.frame || tplFrame(tpl.id); // 'solid' | 'double'
+    const ink = pal.ink || tplInk(tpl.id);
+    // A miniature poster mock: real background, frame, accent badge and
+    // text bars - so users pick a design by how it actually looks.
+    btn.innerHTML = `<span class="tpl-thumb" aria-hidden="true"
+        style="--t-bg:${bg};--t-accent:${accent};--t-frame:${frameColor};--t-frame-style:${frameStyle};--t-ink:${ink}">
+      <span class="tpl-frame"></span>
+      <span class="t-badge"></span>
+      <span class="t-line t-ref"></span>
+      <span class="t-line"></span><span class="t-line"></span><span class="t-line t-short"></span>
+      <span class="t-foot"></span>
+    </span><span class="tpl-name">${getLang() === 'he' ? tpl.labelHe : tpl.labelEn}</span>`;
     btn.addEventListener('click', () => {
       settings.design.template = tpl.id;
       if (tpl.id === 'auto' && !settings.design.autoTemplateSeed) {
@@ -213,6 +286,9 @@ function renderTemplateOptions() {
 
 function tplBg(id) {
   return { classic: '#fdf8ec', modern: '#ffffff', royal: '#fffdf7', elegant: '#fbfaf7', fresh: '#f4f9f4', night: '#14213d' }[id] || '#ffffff';
+}
+function tplInk(id) {
+  return { classic: '#3a2c14', modern: '#1f2937', royal: '#22283a', elegant: '#151515', fresh: '#14301c', night: '#f4f7fb' }[id] || '#555555';
 }
 function tplFrame(id) {
   return id === 'night' || id === 'royal' || id === 'classic' ? 'double' : 'solid';
@@ -255,6 +331,60 @@ function renderVersionOptions() {
   }
 }
 
+/** Rebuild the tractate selector, applying the free-text search filter.
+ *  The currently selected tractate always stays visible (under "Selected"). */
+function applyMasechetFilter() {
+  const sel = $('masechetSel');
+  const he = getLang() === 'he';
+  const raw = ($('masechetFilter').value || '').trim();
+  const q = raw.toLowerCase();
+  const label = (m) => (he ? masechetHeName(m) : m.title);
+  const matches = (m) => !q || m.title.toLowerCase().includes(q)
+    || (he && (masechetHeName(m).includes(q) || m.heTitle.includes(q)));
+
+  sel.innerHTML = '';
+  let any = false;
+  for (const seder of SEDARIM) {
+    const group = el('optgroup');
+    group.label = he ? `סדר ${seder.he}` : seder.en;
+    let groupHas = false;
+    for (const m of MISHNAH.filter((x) => x.seder === seder.en)) {
+      if (!matches(m)) continue;
+      const opt = el('option', null, label(m));
+      opt.value = m.book;
+      group.appendChild(opt);
+      groupHas = true;
+      any = true;
+    }
+    if (groupHas) sel.appendChild(group);
+  }
+
+  const selectedBook = settings.start.book || MISHNAH[0].book;
+  if (q && !sel.querySelector(`option[value="${selectedBook}"]`)) {
+    const m = findMasechet(selectedBook);
+    if (m) {
+      const group = el('optgroup');
+      group.label = t('selectedTag');
+      const opt = el('option', null, label(m));
+      opt.value = m.book;
+      group.appendChild(opt);
+      sel.insertBefore(group, sel.firstChild);
+      any = true;
+    }
+  }
+  if (!any) {
+    const opt = el('option', null, t('noTractateMatch', { q: raw }));
+    opt.value = '';
+    opt.disabled = true;
+    opt.selected = true;
+    sel.appendChild(opt);
+  }
+  sel.value = any ? selectedBook : '';
+  if (!sel.selectedOptions[0] || sel.selectedOptions[0].disabled) {
+    if (any) sel.selectedIndex = 0; else sel.selectedIndex = -1;
+  }
+}
+
 /** tractate / chapter / mishna selectors */
 function refreshRefSelectors() {
   const msSel = $('masechetSel');
@@ -262,21 +392,7 @@ function refreshRefSelectors() {
   const miSel = $('mishnaSel');
   const he = getLang() === 'he';
 
-  const prevBook = msSel.value;
-  msSel.innerHTML = '';
-  for (const seder of SEDARIM) {
-    const group = el('optgroup');
-    group.label = he ? `סדר ${seder.he}` : seder.en;
-    for (const m of MISHNAH.filter((x) => x.seder === seder.en)) {
-      const opt = el('option', null, he ? masechetHeName(m) : m.title);
-      opt.value = m.book;
-      group.appendChild(opt);
-    }
-    msSel.appendChild(group);
-  }
-  msSel.value = settings.start.book || MISHNAH[0].book;
-  if (!msSel.selectedOptions[0]) msSel.value = MISHNAH[0].book;
-
+  applyMasechetFilter();
   const masechet = findMasechet(msSel.value);
   chSel.innerHTML = '';
   for (let c = 1; masechet && c <= masechet.chapters.length; c++) {
@@ -329,9 +445,19 @@ function computeContentHash() {
 
 function onContentSettingChange() {
   saveSettings();
-  const scheduleChanged = true;
   renderScheduleIfNeeded();
   markStale();
+  scheduleAutoRebuild();
+}
+
+/** Debounced live-preview rebuild: once the user pauses, the poster stage
+ *  catches up to the current settings without another click. */
+function scheduleAutoRebuild(delay = 900) {
+  clearTimeout(autoTimer);
+  autoTimer = setTimeout(() => {
+    autoTimer = null;
+    if (stagePages.length && !building && computeContentHash() !== lastBuildHash) buildAll();
+  }, delay);
 }
 
 let designRenderVersion = 0;
@@ -353,12 +479,13 @@ function onDesignSettingChange() {
   }
 }
 
-let stale = false;
 function markStale() {
+  if (!stagePages.length) return;
   stale = true;
   const btn = $('buildBtn');
   btn.classList.add('pulse');
   btn.textContent = t('rebuild');
+  setStatus(t('updating'));
 }
 
 function renderScheduleIfNeeded() {
@@ -369,8 +496,165 @@ function renderScheduleIfNeeded() {
   }
   schedule = buildSchedule(settings);
   updateScheduleTable();
-  $('scheduleWrap').classList.remove('hidden');
+  $('scheduleWrap').hidden = false;
+  updateDockSummary();
   return true;
+}
+
+/* ===========================================================================
+ * Settings tabs (Schedule / Content / Design / Saved)
+ * =========================================================================*/
+
+const TAB_IDS = ['schedule', 'text', 'design', 'saved'];
+
+function setSettingsTab(tab, { persist = true } = {}) {
+  if (!TAB_IDS.includes(tab)) tab = 'schedule';
+  document.querySelectorAll('#settingsTabs .tab-btn').forEach((b) => {
+    const on = b.dataset.tab === tab;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+    b.tabIndex = on ? 0 : -1;
+  });
+  for (const id of TAB_IDS) {
+    $(`tab${id[0].toUpperCase()}${id.slice(1)}`).hidden = id !== tab;
+  }
+  if (persist) saveUIState({ tab });
+  fitPreviewWidth();
+}
+
+function wireSettingsTabs() {
+  document.querySelectorAll('#settingsTabs .tab-btn').forEach((b) => {
+    b.addEventListener('click', () => setSettingsTab(b.dataset.tab));
+  });
+  // Arrow-key navigation (tablist pattern)
+  $('settingsTabs').addEventListener('keydown', (e) => {
+    const idx = TAB_IDS.indexOf(e.target.dataset.tab);
+    if (idx === -1) return;
+    let next = null;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = TAB_IDS[(idx + 1) % TAB_IDS.length];
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = TAB_IDS[(idx - 1 + TAB_IDS.length) % TAB_IDS.length];
+    else if (e.key === 'Home') next = TAB_IDS[0];
+    else if (e.key === 'End') next = TAB_IDS[TAB_IDS.length - 1];
+    if (next) {
+      e.preventDefault();
+      setSettingsTab(next);
+      $(`tabBtn${next[0].toUpperCase()}${next.slice(1)}`).focus();
+    }
+  });
+}
+
+/* ===========================================================================
+ * Help dialog, intro banner, schedule collapse, accent presets, reset
+ * =========================================================================*/
+
+function applyScheduleToggle() {
+  const wrap = $('scheduleTableWrap');
+  if (!wrap) return;
+  wrap.hidden = scheduleCollapsed;
+  $('scheduleToggle').textContent = t(scheduleCollapsed ? 'expand' : 'collapse');
+}
+
+function wireScheduleToggle() {
+  $('scheduleToggle').addEventListener('click', () => {
+    scheduleCollapsed = !scheduleCollapsed;
+    saveUIState({ scheduleCollapsed });
+    applyScheduleToggle();
+  });
+}
+
+let helpOpen = false;
+function openHelp(open) {
+  helpOpen = open;
+  const backdrop = $('helpBackdrop');
+  backdrop.hidden = !open;
+  if (open) {
+    modalPreviousFocus = document.activeElement;
+    $('helpClose').focus();
+  } else if (modalPreviousFocus && modalPreviousFocus.focus) {
+    modalPreviousFocus.focus();
+    modalPreviousFocus = null;
+  }
+}
+
+function wireHelp() {
+  $('helpBtn').addEventListener('click', () => openHelp(true));
+  $('helpClose').addEventListener('click', () => openHelp(false));
+  $('helpBackdrop').addEventListener('click', (e) => { if (e.target === $('helpBackdrop')) openHelp(false); });
+  document.addEventListener('keydown', (e) => {
+    if (!helpOpen) return;
+    if (e.key === 'Escape') openHelp(false);
+    if (e.key === 'Tab') trapFocus(e, $('helpModal'));
+  });
+}
+
+function wireIntroBanner() {
+  const banner = $('introBanner');
+  let seen = false;
+  try { seen = !!localStorage.getItem(INTRO_KEY); } catch { /* ignore */ }
+  banner.hidden = seen;
+  const dismiss = () => {
+    banner.hidden = true;
+    try { localStorage.setItem(INTRO_KEY, '1'); } catch { /* ignore */ }
+  };
+  $('introGotItBtn').addEventListener('click', dismiss);
+}
+
+function syncAccentPresets() {
+  const val = ($('accentColor').value || '').toLowerCase();
+  document.querySelectorAll('#accentPresets .accent-swatch').forEach((s) => {
+    s.classList.toggle('active', s.dataset.accent.toLowerCase() === val);
+  });
+}
+
+function wireAccentPresets() {
+  document.querySelectorAll('#accentPresets .accent-swatch').forEach((s) => {
+    s.addEventListener('click', () => {
+      const input = $('accentColor');
+      input.value = s.dataset.accent;
+      settings.design.accent = s.dataset.accent;
+      syncAccentPresets();
+      onDesignSettingChange();
+    });
+  });
+}
+
+function wireReset() {
+  $('resetBtn').addEventListener('click', async () => {
+    const ok = await confirmDialog(t('resetConfirm'));
+    if (!ok) return;
+    settings = normalizeSettings({});
+    settings.design.logoDataUrl = null;
+    settings.design.bgDataUrl = null;
+    saveSettings();
+    // clear uploads + their previews
+    $('logoFile').value = '';
+    $('bgFile').value = '';
+    $('logoPreview').classList.add('hidden');
+    $('bgPreview').classList.add('hidden');
+    $('logoRemove').classList.add('hidden');
+    $('bgRemove').classList.add('hidden');
+    $('overlayField').classList.add('hidden');
+    // discard the built stage so stale posters never linger
+    stagePages = [];
+    entryData = [];
+    entryToPage = [];
+    pageIndex = 0;
+    builtOnce = false;
+    lastBuildHash = '';
+    stale = false;
+    $('previewCanvas').querySelectorAll('.poster-page').forEach((n) => n.remove());
+    $('previewEmpty').classList.remove('hidden');
+    $('actionsRow').classList.add('hidden');
+    $('scheduleWrap').hidden = true;
+    setLang(settings.lang || 'en');
+    refreshFormFromSettings();
+    applyI18n();
+    syncTextLangVisibility();
+    syncPageSize();
+    renderScheduleIfNeeded();
+    fitPreviewWidth();
+    setProfileStatus(t('resetDone'), 'ok');
+  });
 }
 
 /* ===========================================================================
@@ -665,20 +949,28 @@ function updatePreviewChrome() {
  * =========================================================================*/
 
 async function buildAll() {
+  // Builds are serialized: a request arriving mid-build is queued and runs
+  // right after, so a manual click and the live auto-rebuild never race.
+  if (building) { queuedBuild = true; return; }
+  building = true;
   const btn = $('buildBtn');
   btn.disabled = true;
   btn.classList.remove('pulse');
+  btn.textContent = t('building');
   try {
     if (!renderScheduleIfNeeded()) return;
     contentHash = computeContentHash();
+    lastBuildHash = contentHash;
     setStatus(t('loading') + ' …');
     setProgress(0, 1);
     const { failed } = await loadEntryData();
     await rebuildAllPagesWithFonts();
     stale = false;
+    builtOnce = true;
     renderPreview(0);
     $('actionsRow').classList.remove('hidden');
     updateScheduleTable();
+    fitPreviewWidth();
     if (failed) {
       setStatus(t('errNetwork', { ref: '' }), 'error');
     } else {
@@ -688,9 +980,17 @@ async function buildAll() {
     console.error(err);
     setStatus(String(err && err.message ? err.message : err), 'error');
   } finally {
+    building = false;
     btn.disabled = false;
-    btn.textContent = t('build');
     setProgress(1, 1);
+    if (queuedBuild) { queuedBuild = false; buildAll(); return; }
+    // Settings changed while we were working: catch up with a quick rebuild.
+    if (stagePages.length && computeContentHash() !== lastBuildHash) {
+      markStale();
+      scheduleAutoRebuild(300);
+      return;
+    }
+    btn.textContent = builtOnce ? t('rebuild') : t('build');
   }
 }
 
@@ -808,6 +1108,7 @@ function switchTab(tab) {
     b.classList.toggle('active', b.dataset.tab === tab);
   });
   window.scrollTo({ top: 0 });
+  fitPreviewWidth();
 }
 
 /* ===========================================================================
@@ -815,6 +1116,14 @@ function switchTab(tab) {
  * =========================================================================*/
 
 function wire() {
+  // redesigned chrome
+  wireSettingsTabs();
+  wireHelp();
+  wireIntroBanner();
+  wireScheduleToggle();
+  wireAccentPresets();
+  wireReset();
+
   // language
   $('langToggle').addEventListener('click', () => {
     const next = getLang() === 'he' ? 'en' : 'he';
@@ -830,7 +1139,7 @@ function wire() {
     saveSettings();
     applyI18n();
     syncTextLangVisibility();
-    if (entryData.length) markStale();
+    if (entryData.length) { markStale(); scheduleAutoRebuild(); }
   });
 
   // schedule
@@ -857,6 +1166,7 @@ function wire() {
   $('wdAll').addEventListener('click', () => { settings.weekdays = [0, 1, 2, 3, 4, 5, 6]; buildWeekdayChips(); onContentSettingChange(); });
   $('wdNone').addEventListener('click', () => { settings.weekdays = []; buildWeekdayChips(); onContentSettingChange(); });
 
+  $('masechetFilter').addEventListener('input', () => applyMasechetFilter());
   $('masechetSel').addEventListener('change', (e) => {
     settings.start.book = e.target.value;
     settings.start.chapter = 1;
@@ -1052,6 +1362,7 @@ function wire() {
   $('accentColor').value = settings.design.accent;
   $('accentColor').addEventListener('input', (e) => {
     settings.design.accent = e.target.value;
+    syncAccentPresets();
     clearTimeout(window.__accentTimer);
     window.__accentTimer = setTimeout(onDesignSettingChange, 200);
   });
@@ -1096,7 +1407,8 @@ function wire() {
   document.querySelectorAll('.mobile-tab').forEach((b) => b.addEventListener('click', () => switchTab(b.dataset.tab)));
 
   // preview scaling on resize
-  new ResizeObserver(() => scalePreview()).observe($('previewCanvas'));
+  new ResizeObserver(() => { scalePreview(); fitPreviewWidth(); }).observe($('previewCanvas'));
+  window.addEventListener('resize', () => { scalePreview(); fitPreviewWidth(); });
 }
 
 function syncTextLangVisibility() {
@@ -1280,7 +1592,7 @@ function applyLoadedSettings(next, { keepImages = true } = {}) {
   syncTextLangVisibility();
   syncPageSize();
   renderScheduleIfNeeded();
-  if (entryData.length) markStale();
+  if (entryData.length) { markStale(); scheduleAutoRebuild(); }
 }
 
 /** Push the current `settings` object back into every form control. */
@@ -1290,6 +1602,7 @@ function refreshFormFromSettings() {
   $('skipYomTov').checked = settings.skipYomTov;
   $('diasporaSel').value = settings.diaspora ? 'diaspora' : 'israel';
   buildWeekdayChips();
+  $('masechetFilter').value = '';
   refreshRefSelectors();
   updateRefHint();
   $('textLang').value = settings.text.language;
@@ -1326,6 +1639,7 @@ function refreshFormFromSettings() {
     $(key).value = settings.design[key];
   }
   $('accentColor').value = settings.design.accent;
+  syncAccentPresets();
   $('institution').value = settings.design.institution;
   $('dedication').value = settings.design.dedication;
   $('footerNote').value = settings.design.footerNote;
@@ -1452,6 +1766,8 @@ function init() {
   wire();
   applyI18n();
   syncTextLangVisibility();
+  setSettingsTab(loadUIState().tab, { persist: false });
+  applyScheduleToggle();
   renderScheduleIfNeeded();
   // restore uploads previews
   if (settings.design.logoDataUrl) {
@@ -1465,6 +1781,10 @@ function init() {
     $('bgRemove').classList.remove('hidden');
     $('overlayField').classList.remove('hidden');
   }
+  fitPreviewWidth();
+  // Show a finished poster immediately: build the current schedule up front
+  // (bundled offline text makes the built-in example instant, even offline).
+  buildAll();
 }
 
 init();

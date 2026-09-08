@@ -36,6 +36,10 @@ and served locally.
   by default (a toggle restores one-line-per-comment blocks), reclaiming a full
   line per commentary unit
 - Per-page dynamic header: weekday, Hebrew date (month name without a leading ב־), weekly parasha, "day N of M" counter
+- The **mishna reference sits inside that info line** — one line of details above the text, with the
+  weekday and the weekly parasha kept together so a wrap can never drop the date between them
+- **Content settings are split in two**: *Mishna text & commentary* (language, nikud, edition,
+  commentaries) and *Poster info line* (reference, badge, dates & weekday, footer)
 - Weekday display can match the poster, use the traditional Yiddish names (זונטאג through שב"ק), be hidden, or use seven custom labels
 - Optional date-aware Yom Tov / holiday line, including Chol HaMoed; choose Hebrew, Yiddish, or English wording and it respects the Israel / Diaspora setting. Holiday Torah readings are omitted from the separate parasha field to avoid duplicate date context
 - Optional, customizable "Daily Mishnah" badge; institution letterhead, dedication line, and custom footer note
@@ -52,7 +56,8 @@ and served locally.
   - **One mishna per page** — auto-stretched to fill the page, with a user-set ceiling font size (default 64 px)
   - **Pack as many mishnas per page as fit** — pages are filled greedily down to a floor font size (default 14 px) before breaking to the next page; several learning days share a page and the schedule table still jumps to the right page
   - **Margins** — independent top / right / bottom / left insets (inches) that move the text in from each page edge, so text never collides with pre-printed stationery, template borders, or drawn-over artwork
-  - **Text alignment** — language-native right/left, justified, or centered (applies to mishna and commentary)
+  - **Text alignment** — justified by default (flush both edges, like a printed sefer), or
+    language-native right/left, or centered (applies to mishna and commentary)
   - **Commentary layout** — flowing paragraphs (default, space-saving) or classic one-line-per-דיבור-המתחיל blocks
 
 **Saved profiles & backup**
@@ -107,8 +112,9 @@ and served locally.
 - **Poster-first preview column**: the preview card keeps the whole poster plus
   the export bar (PDF quality, Download PDF, PNG, Print) inside the viewport,
   centered and height-constrained on desktop
-- **Tractate search** — type to filter all 63 masechtot (English or Hebrew),
-  the selected tractate stays pinned under "Selected"
+- **Tractate search** — one combobox for all 63 masechtot: it shows the chosen
+  tractate, filters inline as you type (English or Hebrew), and picks with a click
+  or the arrow keys + Enter
 - **Template thumbnails** render mini poster mocks (real background, frame,
   accent and text bars) instead of flat swatches; accent color has quick-pick
   swatches; "Surprise me" stays one click away
@@ -140,7 +146,7 @@ then open <http://localhost:8930>. (ES modules require http:// — `file://` won
 ```bash
 npm install        # dev deps only (puppeteer-core + @sparticuz/chromium for headless tests)
 npm test           # 76 unit tests
-npm run test:e2e   # 36 end-to-end scenarios in real headless Chromium (offline, fixture-driven)
+npm run test:e2e   # 38 end-to-end scenarios in real headless Chromium (offline, fixture-driven)
 npm run test:all   # everything
 ```
 
@@ -165,7 +171,10 @@ controls end-to-end: flowing commentary collapses to a single running paragraph,
 margins move the text region (48 px ↔ 120 px insets verified), justify/center/right
 alignment applies, and fill mode packs all four Bekhorot mishnayot onto fewer pages
 with every unit present, nothing overflowing, fonts inside the floor/ceiling bounds,
-and the schedule table jumping to the packed page that holds a clicked day. A further
+and the schedule table jumping to the packed page that holds a clicked day. Two further
+scenarios cover the info line carrying the mishna reference (weekday + parasha kept in
+one bit, Hebrew date in its own) and the tractate combobox filtering inline as you type
+with keyboard and mouse selection plus an Escape that leaves the choice alone. A last
 scenario checks `robots.txt`, the Open Graph / Twitter tags, and the JSON-LD block.
 
 The unit suite adds focused coverage for the settings schema and migration/normalization
@@ -203,7 +212,7 @@ tests/
   unit/                 76 unit tests (node --test): hebrew, i18n, poster, schedule,
                         settings, profiles, content
   e2e/                  e2e.mjs + browser.mjs (chromium bootstrap, static server,
-                        Sefaria fixture interceptor) — 36 scenarios, runs fully offline
+                        Sefaria fixture interceptor) — 38 scenarios, runs fully offline
   fixtures/             recorded Sefaria API responses
 tools/build-fixtures.mjs rebuilds the fixtures from the live API
 tools/fetch-corpus-github.mjs  bulk-builds the offline corpus (whole Mishnah) from

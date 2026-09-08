@@ -15,7 +15,7 @@ test('DEFAULTS is a complete, self-consistent schema', () => {
   assert.equal(DEFAULTS.design.showAttribution, true);
   // Layout options keep a sane, backwards-compatible default state.
   assert.equal(DEFAULTS.design.layoutMode, 'single');
-  assert.equal(DEFAULTS.design.textAlign, 'auto');
+  assert.equal(DEFAULTS.design.textAlign, 'justify');
   assert.equal(DEFAULTS.design.commLayout, 'flow');
   assert.equal(DEFAULTS.design.minMishnaFontPx, DEFAULT_MIN_FONT_PX);
   assert.equal(DEFAULTS.design.maxMishnaFontPx, DEFAULT_MAX_FONT_PX);
@@ -29,7 +29,7 @@ test('DEFAULTS is a complete, self-consistent schema', () => {
 test('legacy settings without layout fields are repaired to the defaults', () => {
   const s = normalizeSettings({ design: { template: 'modern' } });
   assert.equal(s.design.layoutMode, 'single');
-  assert.equal(s.design.textAlign, 'auto');
+  assert.equal(s.design.textAlign, 'justify');
   assert.equal(s.design.commLayout, 'flow');
   assert.equal(s.design.minMishnaFontPx, DEFAULT_MIN_FONT_PX);
   assert.equal(s.design.maxMishnaFontPx, DEFAULT_MAX_FONT_PX);
@@ -65,7 +65,7 @@ test('normalizeSettings validates the layout enums and font limits', () => {
     },
   });
   assert.equal(bad.design.layoutMode, 'single');
-  assert.equal(bad.design.textAlign, 'auto');
+  assert.equal(bad.design.textAlign, 'justify');
   assert.equal(bad.design.commLayout, 'flow');
   // Numeric limits are clamped to their ranges (invalid *types* fall back).
   assert.equal(bad.design.minMishnaFontPx, 11);

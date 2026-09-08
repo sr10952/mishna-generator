@@ -343,16 +343,35 @@ function buildPosterHead(design) {
   return head.childElementCount ? head : null;
 }
 
-/** Poster info bar: badge (optional) + weekday/date + holiday + parsha + day count. */
-function buildPosterInfo({ date, design, he, calendar, index, total, settings, showBadge }) {
+/** The weekly parasha, already prefixed and holiday-filtered, or ''. */
+function posterParshaText({ design, he, calendar }) {
+  if (design.showParsha === false || !calendar || !calendar.parsha) return '';
+  const raw = he ? calendar.parsha.he : calendar.parsha.en;
+  // A holiday reading may be returned in the weekly-parasha slot (for
+  // example "סוכות חג ראשון"). Suppress it rather than duplicating or
+  // misleading the date information shown immediately beside it.
+  if (!raw || isHolidayParsha(raw)) return '';
+  const prefix = he ? 'פרשת ' : 'Parshat ';
+  return `${isParshaName(raw) ? prefix : ''}${raw}`;
+}
+
+/**
+ * Poster info bar: badge (optional) + weekday · parasha + Hebrew date +
+ * holiday + mishna reference + day count.
+ *
+ * Bits are ordered so the pieces that belong together never get separated by
+ * a wrap: the weekday and the weekly parasha share one bit (the parasha
+ * follows the weekday directly), and the Hebrew date is its own bit instead of
+ * sitting between the two.
+ */
+function buildPosterInfo({ date, design, he, calendar, index, total, settings, showBadge, masechet, chapter, mishna }) {
   const infoBits = [];
-  if (design.showDate !== false) {
-    const datePieces = [
-      formatPosterWeekday(date, design, he),
-      formatHebrewDate(date, he ? 'he' : 'en'),
-    ].filter(Boolean);
-    if (datePieces.length) infoBits.push(datePieces.join(' · '));
-  }
+  const push = (text, cls) => { if (text) infoBits.push({ text, cls }); };
+
+  const weekdayText = design.showDate === false ? '' : formatPosterWeekday(date, design, he);
+  const dateText = design.showDate === false ? '' : formatHebrewDate(date, he ? 'he' : 'en');
+  push([weekdayText, posterParshaText({ design, he, calendar })].filter(Boolean).join(' · '));
+  push(dateText);
   if (design.showYomTovName === true) {
     // Main.js stores the per-entry value so all generated output is stable,
     // even if the weekly calendar request failed. Keep this fallback for
@@ -360,23 +379,17 @@ function buildPosterInfo({ date, design, he, calendar, index, total, settings, s
     const yomTov = (calendar && calendar.yomTov) || getYomTovInfo(date, {
       diaspora: settings.diaspora !== false,
     });
-    const yomTovName = formatYomTovInfo(yomTov, {
+    push(formatYomTovInfo(yomTov, {
       lang: yomTovDisplayLanguage(design, he),
-    });
-    if (yomTovName) infoBits.push(yomTovName);
+    }));
   }
-  if (design.showParsha !== false && calendar && calendar.parsha) {
-    const raw = he ? calendar.parsha.he : calendar.parsha.en;
-    // A holiday reading may be returned in the weekly-parasha slot (for
-    // example "סוכות חג ראשון"). Suppress it rather than duplicating or
-    // misleading the date information shown immediately beside it.
-    if (raw && !isHolidayParsha(raw)) {
-      const prefix = he ? 'פרשת ' : 'Parshat ';
-      infoBits.push(`${isParshaName(raw) ? prefix : ''}${raw}`);
-    }
+  // The mishna reference rides along in the same line as the date details
+  // instead of taking a heading of its own above the text.
+  if (design.showRef !== false && masechet) {
+    push(formatRefTitle(masechet, chapter, mishna, he ? 'he' : 'en'), 'pg-ref');
   }
   if (design.showDayCount !== false) {
-    infoBits.push(he ? `יום ${gematria(index)} מתוך ${gematria(total)}` : `Day ${index} of ${total}`);
+    push(he ? `יום ${gematria(index)} מתוך ${gematria(total)}` : `Day ${index} of ${total}`);
   }
   // The badge is optional and its text is intentionally independent from the
   // UI language: an institution may use its own Hebrew/English program name.
@@ -389,14 +402,10 @@ function buildPosterInfo({ date, design, he, calendar, index, total, settings, s
     const dailyMishnaBadgeText = String(design.dailyMishnaBadgeText || '').trim() || S.dailyMishna;
     info.appendChild(el('span', 'pg-badge', esc(dailyMishnaBadgeText)));
   }
-  for (const b of infoBits) info.appendChild(el('span', 'pg-info-bit', esc(b)));
+  for (const b of infoBits) {
+    info.appendChild(el('span', b.cls ? `pg-info-bit ${b.cls}` : 'pg-info-bit', esc(b.text)));
+  }
   return info;
-}
-
-/** Mishna reference title or null when disabled. */
-function buildPosterRef({ design, he, masechet, chapter, mishna }) {
-  if (design.showRef === false || !masechet) return null;
-  return el('h2', 'pg-ref', esc(formatRefTitle(masechet, chapter, mishna, he ? 'he' : 'en')));
 }
 
 /** One commentary unit may not be the same as one line of print: "flowing"
@@ -489,10 +498,11 @@ export function buildPosterPage({ entry, textData, commentaries, calendar, index
 
   const head = buildPosterHead(design);
   if (head) content.appendChild(head);
-  const info = buildPosterInfo({ date, design, he, calendar, index, total, settings, showBadge: true });
+  const info = buildPosterInfo({
+    date, design, he, calendar, index, total, settings, showBadge: true,
+    masechet, chapter: entry.chapter, mishna: entry.mishna,
+  });
   if (info) content.appendChild(info);
-  const ref = buildPosterRef({ design, he, masechet, chapter: entry.chapter, mishna: entry.mishna });
-  if (ref) content.appendChild(ref);
   content.appendChild(buildPosterMain({ design, textData, commentaries, settings, he }));
   content.appendChild(buildPosterFoot({ design, textData, he }));
 
@@ -511,10 +521,11 @@ function fillUnit({ entry, textData, commentaries, calendar, dayIndex, total, se
   const unit = el('div', 'pg-unit');
   unit.dataset.entry = String(entryIndex);
   unit.dataset.ref = `${entry.book} ${entry.chapter}:${entry.mishna}`;
-  const info = buildPosterInfo({ date, design, he, calendar, index: dayIndex, total, settings, showBadge });
+  const info = buildPosterInfo({
+    date, design, he, calendar, index: dayIndex, total, settings, showBadge,
+    masechet, chapter: entry.chapter, mishna: entry.mishna,
+  });
   if (info) unit.appendChild(info);
-  const ref = buildPosterRef({ design, he, masechet, chapter: entry.chapter, mishna: entry.mishna });
-  if (ref) unit.appendChild(ref);
   unit.appendChild(buildPosterMain({ design, textData, commentaries, settings, he }));
   return unit;
 }

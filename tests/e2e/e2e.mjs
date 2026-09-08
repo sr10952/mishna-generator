@@ -1018,7 +1018,7 @@ try {
     await clickBuild(page);
 
     // Defaults: single-mishna pages, flowing commentary joined into one
-    // paragraph, language-native (right) alignment, 0.5in top/bottom margins.
+    // paragraph, justified body text, 0.5in top/bottom margins.
     assert.equal(await $eval(page, '#renderStage .poster-page', (e) => e.dataset.layout), 'single');
     assert.equal(await $eval(page, '#renderStage .pg-content', (e) => getComputedStyle(e).top), '48px');
     const flow = await $eval(page, '#renderStage .pg-comm-text', (e) => ({
@@ -1028,7 +1028,7 @@ try {
     }));
     assert.equal(flow.count, 1, 'flowing commentary must be a single running paragraph');
     assert.ok(flow.text.includes('·'), 'דיבור המתחיל units are separated inline');
-    assert.equal(flow.align, 'right');
+    assert.equal(flow.align, 'justify', 'justified body text is the default');
 
     // Margins: 1.25in top -> 120px inset; 0.75in bottom -> 72px inset.
     await evalJS(page, () => {
@@ -1151,6 +1151,129 @@ try {
     });
     await waitFor(page, () => evalJS(page, () => document.querySelectorAll('#renderStage .poster-page').length === 4));
     assert.equal(await $eval(page, '#renderStage .poster-page', (e) => e.dataset.layout), 'single');
+    assert.equal(page.__errors.length, 0, `console errors: ${page.__errors.join(' | ')}`);
+  });
+
+  await scenario('mishna reference joins the poster info line', async () => {
+    await page.goto(BASE, { waitUntil: 'networkidle0' });
+    await evalJS(page, () => localStorage.clear());
+    page.__errors.length = 0;
+    await page.reload({ waitUntil: 'networkidle0' });
+    await setStartDate(page, '2026-09-03');
+    await evalJS(page, () => { const c = document.getElementById('count'); c.value = '4'; c.dispatchEvent(new Event('change', { bubbles: true })); });
+    await clickBuild(page);
+
+    const info = await evalJS(page, () => {
+      const p = document.querySelector('#renderStage .poster-page');
+      const ref = p.querySelector('.pg-ref');
+      return {
+        bits: [...p.querySelectorAll('.pg-info-bit')].map((e) => e.textContent),
+        refInInfo: !!p.querySelector('.pg-info .pg-ref'),
+        standaloneRef: !!p.querySelector('.pg-content > .pg-ref'),
+        refText: ref ? ref.textContent : '',
+      };
+    });
+    // The reference rides along with the date details instead of heading them.
+    assert.equal(info.refInInfo, true, 'the mishna reference belongs to the info line');
+    assert.equal(info.standaloneRef, false, 'no separate reference heading remains');
+    assert.match(info.refText, /בכורות/);
+    assert.ok(info.bits.includes(info.refText), 'the reference is rendered as an info bit');
+
+    // Weekday and parasha share one bit and the Hebrew date is another, so a
+    // wrap can never drop the date in between them.
+    const lead = info.bits.find((b) => b.includes('יום חמישי'));
+    assert.ok(lead, 'a bit carries the weekday');
+    assert.match(lead, /פרשת נצבים/, 'the parasha follows the weekday inside the same bit');
+    assert.ok(
+      info.bits.some((b) => /כ״א אלול תשפ״ו/.test(b) && !b.includes('פרשת')),
+      'the Hebrew date is its own bit, outside the weekday + parasha pair',
+    );
+
+    // The toggle still hides just the reference.
+    await evalJS(page, () => {
+      const t = document.getElementById('showRef');
+      t.checked = false;
+      t.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await waitFor(page, () => evalJS(page, () => !document.querySelector('#renderStage .pg-info .pg-ref')));
+    assert.match(await $eval(page, '#renderStage .pg-info', (e) => e.textContent), /כ״א אלול/, 'the rest of the info line survives');
+    assert.equal(page.__errors.length, 0, `console errors: ${page.__errors.join(' | ')}`);
+  });
+
+  await scenario('tractate search filters the chooser inline and picks from it', async () => {
+    await page.goto(BASE, { waitUntil: 'networkidle0' });
+    await evalJS(page, () => localStorage.clear());
+    page.__errors.length = 0;
+    await page.reload({ waitUntil: 'networkidle0' });
+    // Commentaries off keeps every tractate on bundled text, so swapping
+    // masechtot never reaches for a fixture-less network request.
+    await evalJS(page, () => {
+      const b = document.getElementById('commBartenura');
+      b.checked = false;
+      b.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await clickBuild(page);
+
+    // Closed, the single control simply shows the chosen tractate.
+    assert.equal(await $eval(page, '#masechetFilter', (e) => e.value), 'Bekhorot');
+    assert.equal(await $eval(page, '#masechetList', (e) => e.hidden), true);
+    assert.equal(await $eval(page, '#masechetSel', (e) => e.value), 'Mishnah Bekhorot');
+
+    // Typing filters the live panel - inline, without leaving the field.
+    await page.focus('#masechetFilter');
+    await page.keyboard.type('sha');
+    const filtered = await evalJS(page, () => ({
+      hidden: document.getElementById('masechetList').hidden,
+      focused: document.activeElement.id,
+      rows: [...document.querySelectorAll('#masechetList .combo-opt')].map((e) => e.textContent),
+    }));
+    assert.equal(filtered.hidden, false, 'the panel opens as soon as you type');
+    assert.equal(filtered.focused, 'masechetFilter', 'results appear while the field keeps focus');
+    assert.ok(filtered.rows.length > 0 && filtered.rows.length < 63, `expected a filtered subset, got ${filtered.rows.length}`);
+
+    // Arrow + Enter commits the highlighted row without a mouse.
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    await waitFor(page, () => evalJS(page, () => document.getElementById('masechetSel').value !== 'Mishnah Bekhorot'));
+    const chosen = await evalJS(page, () => ({
+      book: document.getElementById('masechetSel').value,
+      input: document.getElementById('masechetFilter').value,
+      chapter: document.getElementById('chapterSel').value,
+      hidden: document.getElementById('masechetList').hidden,
+    }));
+    assert.equal(chosen.hidden, true, 'choosing closes the panel');
+    assert.equal(chosen.chapter, '1', 'a new tractate restarts at chapter 1');
+    assert.equal(chosen.input, chosen.book.replace(/^(Mishnah|Pirkei) /, ''), 'the field shows the new choice');
+
+    // Clicking a filtered row works too.
+    await page.click('#masechetFilter');
+    await evalJS(page, () => {
+      const i = document.getElementById('masechetFilter');
+      i.value = 'bek';
+      i.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await waitFor(page, () => evalJS(page, () => document.querySelectorAll('#masechetList .combo-opt').length === 1));
+    await evalJS(page, () => document.querySelector('#masechetList .combo-opt').click());
+    await waitFor(page, () => evalJS(page, () => document.getElementById('masechetSel').value === 'Mishnah Bekhorot'));
+    assert.equal(await $eval(page, '#masechetFilter', (e) => e.value), 'Bekhorot');
+
+    // A dead-end search says so and Escape leaves the choice untouched.
+    await page.click('#masechetFilter');
+    await evalJS(page, () => {
+      const i = document.getElementById('masechetFilter');
+      i.value = 'zzz';
+      i.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await waitFor(page, () => evalJS(page, () => !!document.querySelector('#masechetList .combo-empty')));
+    await page.keyboard.press('Escape');
+    const escaped = await evalJS(page, () => ({
+      hidden: document.getElementById('masechetList').hidden,
+      input: document.getElementById('masechetFilter').value,
+      book: document.getElementById('masechetSel').value,
+    }));
+    assert.equal(escaped.hidden, true, 'Escape closes the panel');
+    assert.equal(escaped.input, 'Bekhorot', 'Escape restores the chosen tractate');
+    assert.equal(escaped.book, 'Mishnah Bekhorot', 'a dead-end search leaves the choice alone');
     assert.equal(page.__errors.length, 0, `console errors: ${page.__errors.join(' | ')}`);
   });
 

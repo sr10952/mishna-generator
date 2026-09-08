@@ -150,23 +150,12 @@
   color: var(--pg-accent);
 }
 
-/* mishna reference */
-.poster-page .pg-ref {
-  flex: none;
-  text-align: center;
-  font-size: 30px;
-  font-weight: 900;
+/* mishna reference - rendered as one of the info-line bits, so it only adds
+   emphasis (title color + weight) and keeps the shared • separators. The extra
+   class in the selector keeps it ahead of the compact fill-mode bit styling. */
+.poster-page .pg-info .pg-info-bit.pg-ref {
   color: var(--pg-title-color);
-  margin: 12px 0 4px;
-  line-height: 1.3;
-}
-.poster-page .pg-ref::after {
-  content: '';
-  display: block;
-  width: 130px;
-  height: 3px;
-  background: var(--pg-accent);
-  margin: 10px auto 0;
+  font-weight: 800;
 }
 
 /* main text area (the auto-fit region) */
@@ -292,8 +281,6 @@
 .poster-page.layout-fill .pg-badge { font-size: 13px; padding: 2px 11px; }
 .poster-page.layout-fill .pg-info-bit { font-size: 14px; font-weight: 600; }
 .poster-page.layout-fill .pg-info-bit:not(:last-child)::after { margin-inline-start: 9px; }
-.poster-page.layout-fill .pg-ref { font-size: 21px; margin: 5px 0 3px; line-height: 1.25; }
-.poster-page.layout-fill .pg-ref::after { width: 90px; height: 2px; margin: 5px auto 0; }
 .poster-page.layout-fill .pg-main { padding-top: 5px; }
 .poster-page.layout-fill .pg-commentary { margin-top: 0.6em; }
 .poster-page.layout-fill .pg-commentary .pg-comm-label { font-size: 0.85em; }

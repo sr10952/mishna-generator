@@ -113,7 +113,10 @@ export function makeDefaults() {
       //     to maxMishnaFontPx; 'fill' = pack as many mishnas per page as fit
       //     at minMishnaFontPx before breaking to the next page.
       layoutMode: 'single',
-      textAlign: 'auto',      // 'auto' | 'justify' | 'center'
+      // Justified body text is the default: flush on both edges reads like a
+      // printed sefer. 'auto' (language-native right/left) and 'center' stay
+      // available.
+      textAlign: 'justify',   // 'justify' | 'auto' | 'center'
       commLayout: 'flow',     // 'flow' = commentary paragraphs flow inline | 'blocks'
       minMishnaFontPx: DEFAULT_MIN_FONT_PX,
       maxMishnaFontPx: DEFAULT_MAX_FONT_PX,

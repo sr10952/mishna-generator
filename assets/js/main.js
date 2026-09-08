@@ -201,6 +201,9 @@ function applyI18n() {
   document.querySelectorAll('[data-i18n-ph]').forEach((node) => {
     node.placeholder = t(node.dataset.i18nPh);
   });
+  document.querySelectorAll('[data-i18n-aria]').forEach((node) => {
+    node.setAttribute('aria-label', t(node.dataset.i18nAria));
+  });
   document.querySelectorAll('[data-i18n-en]').forEach((node) => {
     node.textContent = he ? node.dataset.i18nHe : node.dataset.i18nEn;
   });
@@ -331,69 +334,264 @@ function renderVersionOptions() {
   }
 }
 
-/** Rebuild the tractate selector, applying the free-text search filter.
- *  The currently selected tractate always stays visible (under "Selected"). */
-function applyMasechetFilter() {
-  const sel = $('masechetSel');
-  const he = getLang() === 'he';
-  const raw = ($('masechetFilter').value || '').trim();
-  const q = raw.toLowerCase();
-  const label = (m) => (he ? masechetHeName(m) : m.title);
-  const matches = (m) => !q || m.title.toLowerCase().includes(q)
-    || (he && (masechetHeName(m).includes(q) || m.heTitle.includes(q)));
+/* ---------------------------------------------------------------------------
+ * Tractate combobox - ONE control that filters inline AND chooses.
+ *
+ * The input always shows the selected tractate; focusing or typing opens the
+ * panel below it, the list re-filters on every keystroke, and the choice is
+ * committed by clicking a row or pressing Enter (arrows move the highlight,
+ * Escape backs out). The mirrored <select id="masechetSel"> stays in step so
+ * the value remains an ordinary form field.
+ * -------------------------------------------------------------------------*/
 
+const masechetCombo = { open: false, query: '', active: -1, options: [] };
+
+/** Fold away the punctuation people skip while typing ("Ta'anit" -> "taanit"). */
+function normalizeSearch(value) {
+  return String(value ?? '')
+    .toLowerCase()
+    .replace(/['’`]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Everything one tractate can be searched by: English, Hebrew and its seder. */
+function masechetHaystack(m) {
+  const seder = SEDARIM.find((s) => s.en === m.seder);
+  return normalizeSearch([
+    m.title, m.book, m.heTitle, masechetHeName(m),
+    seder ? `${seder.en} ${seder.he}` : '',
+  ].join(' '));
+}
+
+function masechetLabel(m) {
+  return getLang() === 'he' ? masechetHeName(m) : m.title;
+}
+
+/** Every term must appear somewhere, so "moed sha" still finds Shabbat. */
+function filterMasechtot(query) {
+  const q = normalizeSearch(query);
+  if (!q) return MISHNAH;
+  const terms = q.split(' ').filter(Boolean);
+  return MISHNAH.filter((m) => {
+    const hay = masechetHaystack(m);
+    return terms.every((term) => hay.includes(term));
+  });
+}
+
+/** Paint the panel: seder groups, live matches, current choice ticked. */
+function renderMasechetList() {
+  const list = $('masechetList');
+  const he = getLang() === 'he';
+  const matches = filterMasechtot(masechetCombo.query);
+  list.innerHTML = '';
+  masechetCombo.options = [];
+  for (const seder of SEDARIM) {
+    const group = MISHNAH.filter((m) => m.seder === seder.en && matches.includes(m));
+    if (!group.length) continue;
+    const groupLabel = he ? `סדר ${seder.he}` : seder.en;
+    const groupEl = el('div', 'combo-group', groupLabel);
+    groupEl.setAttribute('role', 'group');
+    groupEl.setAttribute('aria-label', groupLabel);
+    for (const m of group) {
+      const index = masechetCombo.options.length;
+      const opt = el('div', 'combo-opt');
+      opt.id = `masechetOpt-${index}`;
+      opt.setAttribute('role', 'option');
+      opt.setAttribute('aria-selected', String(m.book === settings.start.book));
+      opt.dataset.book = m.book;
+      opt.classList.toggle('is-selected', m.book === settings.start.book);
+      const name = el('span', 'combo-opt-name', masechetLabel(m));
+      opt.appendChild(name);
+      // English UI shows the Hebrew name alongside; Hebrew UI stays Latin-free.
+      if (!he) opt.appendChild(el('span', 'combo-opt-he', masechetHeName(m)));
+      opt.addEventListener('mouseenter', () => setMasechetActive(index));
+      groupEl.appendChild(opt);
+      masechetCombo.options.push(m);
+    }
+    list.appendChild(groupEl);
+  }
+  if (!masechetCombo.options.length) {
+    list.appendChild(el('div', 'combo-empty', t('noTractateMatch', { q: masechetCombo.query.trim() })));
+  }
+  // Highlight the current tractate first, otherwise the top of the list.
+  const selectedAt = masechetCombo.options.findIndex((m) => m.book === settings.start.book);
+  setMasechetActive(masechetCombo.query ? 0 : Math.max(0, selectedAt));
+}
+
+function setMasechetActive(index) {
+  const input = $('masechetFilter');
+  const rows = [...$('masechetList').querySelectorAll('.combo-opt')];
+  masechetCombo.active = index;
+  rows.forEach((row, i) => row.classList.toggle('is-active', i === index));
+  const row = rows[index];
+  if (!row) { input.removeAttribute('aria-activedescendant'); return; }
+  input.setAttribute('aria-activedescendant', row.id);
+  if (row.scrollIntoView) row.scrollIntoView({ block: 'nearest' });
+}
+
+function openMasechetList({ query = '', selectAll = false } = {}) {
+  const input = $('masechetFilter');
+  const list = $('masechetList');
+  masechetCombo.open = true;
+  masechetCombo.query = query;
+  list.hidden = false;
+  input.setAttribute('aria-expanded', 'true');
+  renderMasechetList();
+  if (selectAll) input.select();
+}
+
+function closeMasechetList() {
+  const input = $('masechetFilter');
+  if (!masechetCombo.open) return;
+  masechetCombo.open = false;
+  masechetCombo.query = '';
+  masechetCombo.active = -1;
+  $('masechetList').hidden = true;
+  input.setAttribute('aria-expanded', 'false');
+  input.removeAttribute('aria-activedescendant');
+  syncMasechetInput();
+}
+
+/** Park the input on the selected tractate's name (never while searching). */
+function syncMasechetInput() {
+  const input = $('masechetFilter');
+  if (!input || masechetCombo.open) return;
+  const m = findMasechet(settings.start.book);
+  input.value = m ? masechetLabel(m) : '';
+}
+
+function chooseMasechet(book) {
+  const m = findMasechet(book);
+  if (!m) return;
+  const changed = settings.start.book !== m.book;
+  if (changed) {
+    settings.start.book = m.book;
+    settings.start.chapter = 1;
+    settings.start.mishna = 1;
+  }
+  closeMasechetList();
+  if (!changed) return;
+  refreshRefSelectors();
+  updateRefHint();
+  onContentSettingChange();
+}
+
+function wireMasechetCombo() {
+  const input = $('masechetFilter');
+  const list = $('masechetList');
+  const combo = $('masechetCombo');
+
+  input.addEventListener('focus', () => openMasechetList({ selectAll: true }));
+  // Reopen on click even when the input already has the focus (e.g. right
+  // after committing a row, when the panel closed but focus stayed put).
+  input.addEventListener('mousedown', () => { if (!masechetCombo.open) openMasechetList(); });
+  // Typing both re-filters and re-opens (the list is live, never "on blur").
+  input.addEventListener('input', () => openMasechetList({ query: input.value }));
+  input.addEventListener('keydown', (e) => {
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        if (masechetCombo.open) moveMasechetActive(1);
+        else openMasechetList({ query: input.value });
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        if (masechetCombo.open) moveMasechetActive(-1);
+        else openMasechetList({ query: input.value });
+        break;
+      case 'Home':
+        if (masechetCombo.open) { e.preventDefault(); setMasechetActive(0); }
+        break;
+      case 'End':
+        if (masechetCombo.open) { e.preventDefault(); setMasechetActive(masechetCombo.options.length - 1); }
+        break;
+      case 'Enter':
+        if (!masechetCombo.open) break;
+        e.preventDefault();
+        if (masechetCombo.options[masechetCombo.active]) chooseMasechet(masechetCombo.options[masechetCombo.active].book);
+        else closeMasechetList();
+        break;
+      case 'Escape':
+        if (masechetCombo.open) { e.preventDefault(); closeMasechetList(); }
+        break;
+      case 'Tab':
+        closeMasechetList();
+        break;
+      default:
+        break;
+    }
+  });
+  input.addEventListener('blur', () => closeMasechetList());
+
+  // The caret toggles the panel; preventing mousedown keeps the focus (and
+  // therefore the search text) inside the input.
+  const caret = $('masechetComboCaret');
+  if (caret) {
+    caret.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      if (masechetCombo.open) closeMasechetList();
+      else input.focus();
+    });
+  }
+  // Keep the focus in the input while clicking a row, then commit on click.
+  list.addEventListener('mousedown', (e) => e.preventDefault());
+  list.addEventListener('click', (e) => {
+    const row = e.target.closest('.combo-opt');
+    if (!row) return;
+    chooseMasechet(row.dataset.book);
+    input.focus();
+  });
+  document.addEventListener('pointerdown', (e) => {
+    if (combo && !combo.contains(e.target)) closeMasechetList();
+  });
+}
+
+function moveMasechetActive(delta) {
+  const n = masechetCombo.options.length;
+  if (!n) return;
+  let next = masechetCombo.active + delta;
+  if (next < 0) next = n - 1;
+  if (next >= n) next = 0;
+  setMasechetActive(next);
+}
+
+/** Keep the mirrored <select> populated and pointing at the chosen tractate. */
+function syncMasechetSelect() {
+  const sel = $('masechetSel');
+  if (!sel) return;
   sel.innerHTML = '';
-  let any = false;
   for (const seder of SEDARIM) {
     const group = el('optgroup');
-    group.label = he ? `סדר ${seder.he}` : seder.en;
-    let groupHas = false;
+    group.label = getLang() === 'he' ? `סדר ${seder.he}` : seder.en;
     for (const m of MISHNAH.filter((x) => x.seder === seder.en)) {
-      if (!matches(m)) continue;
-      const opt = el('option', null, label(m));
+      const opt = el('option', null, masechetLabel(m));
       opt.value = m.book;
       group.appendChild(opt);
-      groupHas = true;
-      any = true;
     }
-    if (groupHas) sel.appendChild(group);
+    sel.appendChild(group);
   }
-
-  const selectedBook = settings.start.book || MISHNAH[0].book;
-  if (q && !sel.querySelector(`option[value="${selectedBook}"]`)) {
-    const m = findMasechet(selectedBook);
-    if (m) {
-      const group = el('optgroup');
-      group.label = t('selectedTag');
-      const opt = el('option', null, label(m));
-      opt.value = m.book;
-      group.appendChild(opt);
-      sel.insertBefore(group, sel.firstChild);
-      any = true;
-    }
-  }
-  if (!any) {
-    const opt = el('option', null, t('noTractateMatch', { q: raw }));
-    opt.value = '';
-    opt.disabled = true;
-    opt.selected = true;
-    sel.appendChild(opt);
-  }
-  sel.value = any ? selectedBook : '';
-  if (!sel.selectedOptions[0] || sel.selectedOptions[0].disabled) {
-    if (any) sel.selectedIndex = 0; else sel.selectedIndex = -1;
-  }
+  sel.value = settings.start.book;
 }
 
 /** tractate / chapter / mishna selectors */
 function refreshRefSelectors() {
-  const msSel = $('masechetSel');
   const chSel = $('chapterSel');
   const miSel = $('mishnaSel');
   const he = getLang() === 'he';
 
-  applyMasechetFilter();
-  const masechet = findMasechet(msSel.value);
+  syncMasechetSelect();
+  let masechet = findMasechet(settings.start.book);
+  if (!masechet) {
+    // An unknown tractate (hand-edited backup) falls back to the first one so
+    // the chapter / mishna pickers always have something to show.
+    masechet = MISHNAH[0];
+    settings.start.book = masechet.book;
+    syncMasechetSelect();
+  }
+  // A visible panel re-renders in the new language; a closed one just relabels.
+  if (masechetCombo.open) renderMasechetList();
+  else syncMasechetInput();
   chSel.innerHTML = '';
   for (let c = 1; masechet && c <= masechet.chapters.length; c++) {
     const opt = el('option', null, he ? gematria(c) : String(c));
@@ -1166,14 +1364,10 @@ function wire() {
   $('wdAll').addEventListener('click', () => { settings.weekdays = [0, 1, 2, 3, 4, 5, 6]; buildWeekdayChips(); onContentSettingChange(); });
   $('wdNone').addEventListener('click', () => { settings.weekdays = []; buildWeekdayChips(); onContentSettingChange(); });
 
-  $('masechetFilter').addEventListener('input', () => applyMasechetFilter());
+  wireMasechetCombo();
   $('masechetSel').addEventListener('change', (e) => {
-    settings.start.book = e.target.value;
-    settings.start.chapter = 1;
-    settings.start.mishna = 1;
-    refreshRefSelectors();
-    updateRefHint();
-    onContentSettingChange();
+    if (!e.target.value) return;
+    chooseMasechet(e.target.value);
   });
   $('chapterSel').addEventListener('change', (e) => {
     settings.start.chapter = Number(e.target.value);
@@ -1602,7 +1796,6 @@ function refreshFormFromSettings() {
   $('skipYomTov').checked = settings.skipYomTov;
   $('diasporaSel').value = settings.diaspora ? 'diaspora' : 'israel';
   buildWeekdayChips();
-  $('masechetFilter').value = '';
   refreshRefSelectors();
   updateRefHint();
   $('textLang').value = settings.text.language;

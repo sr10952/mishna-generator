@@ -254,6 +254,93 @@ input[type='range'] { accent-color: var(--ui-accent-2); width: 100%; }
   color: #fff;
 }
 
+/* ---------------- tractate combobox ----------------
+   A single control that filters as you type and doubles as the chooser:
+   the input shows the selected tractate, the panel below it is the live-
+   filtered list, and it is navigable with the keyboard. */
+
+.combo { position: relative; }
+.combo-input {
+  width: 100%;
+  padding-inline-end: 34px;   /* room for the caret */
+  cursor: pointer;
+}
+.combo-input:focus { cursor: text; }
+.combo-caret {
+  position: absolute;
+  inset-inline-end: 10px;
+  top: 50%;
+  width: 22px; height: 22px;
+  transform: translateY(-50%);
+  border: 0; padding: 0; margin: 0;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: none;       /* the input owns every click */
+}
+.combo-caret::before {
+  content: '';
+  display: block;
+  width: 7px; height: 7px;
+  margin: 6px auto 0;
+  border-inline-end: 2px solid var(--ui-muted);
+  border-block-end: 2px solid var(--ui-muted);
+  transform: rotate(45deg);
+}
+.combo-input[aria-expanded='true'] + .combo-caret::before { transform: rotate(-135deg); margin-top: 9px; }
+
+.combo-list {
+  position: absolute;
+  z-index: 40;
+  inset-inline: 0;
+  top: calc(100% + 4px);
+  max-height: 264px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: #fff;
+  border: 1.5px solid var(--ui-border);
+  border-radius: 10px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+  padding: 6px;
+}
+.combo-group {
+  padding: 8px 8px 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ui-muted);
+}
+.combo-opt {
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.combo-opt .combo-opt-he { font-size: 13px; color: var(--ui-muted); font-weight: 500; }
+.combo-opt:hover { background: var(--ui-accent-soft); }
+.combo-opt.is-active { background: var(--ui-accent-soft); box-shadow: inset 0 0 0 1.5px var(--ui-accent); }
+.combo-opt.is-selected { color: var(--ui-accent); }
+.combo-opt.is-selected::after { content: '✓'; font-size: 13px; }
+.combo-empty { padding: 12px 10px; font-size: 13.5px; color: var(--ui-muted); text-align: center; }
+
+/* The mirrored <select> keeps the choice available as a plain form value for
+   tests, assistive tech and no-JS style fallbacks - it is never shown. */
+.combo-native {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 .comm-toggles { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip {
   flex-direction: row;

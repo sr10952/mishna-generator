@@ -18,7 +18,7 @@
 import { getPageSize, FONTS } from './poster.js';
 
 /** Bumped whenever the settings shape changes in a way import must migrate. */
-export const SETTINGS_SCHEMA_VERSION = 2;
+export const SETTINGS_SCHEMA_VERSION = 3;
 
 /** Stable identifier written into backup files so imports can be validated. */
 export const APP_ID = 'mishna-poster-generator';
@@ -28,6 +28,21 @@ export const YOM_TOV_DISPLAY_STYLES = new Set(['auto', 'he', 'yi', 'en']);
 const TEMPLATE_IDS = new Set(['classic', 'modern', 'royal', 'elegant', 'fresh', 'night', 'auto']);
 const PAGE_SIZE_IDS = new Set(['letter', 'legal', 'tabloid', 'custom']);
 const QUALITY_IDS = new Set(['draft', 'high', 'ultra']);
+const LAYOUT_MODES = new Set(['single', 'fill']);
+const TEXT_ALIGNMENTS = new Set(['auto', 'justify', 'center']);
+const COMMENTARY_LAYOUTS = new Set(['flow', 'blocks']);
+
+/** User-adjustable typography limits for the poster body text (CSS px). */
+export const MIN_FONT_PX_MIN = 11;
+export const MIN_FONT_PX_MAX = 96;
+export const MAX_FONT_PX_MIN = 24;
+export const MAX_FONT_PX_MAX = 200;
+export const DEFAULT_MIN_FONT_PX = 14;
+export const DEFAULT_MAX_FONT_PX = 64;
+
+/** Page margins (inches) - text inset from each of the four page edges. */
+export const MARGIN_MIN_IN = 0;
+export const MARGIN_MAX_IN = 2;
 
 /**
  * Image fields are uploaded, potentially private data URLs. They are never
@@ -93,6 +108,19 @@ export function makeDefaults() {
       // UI asks for confirmation (see main.js).
       showProjectDedication: true,
       quality: 'high',
+      // Layout options (added in schema v3):
+      //   layoutMode: 'single' = one mishna per page auto-fitted/stretched up
+      //     to maxMishnaFontPx; 'fill' = pack as many mishnas per page as fit
+      //     at minMishnaFontPx before breaking to the next page.
+      layoutMode: 'single',
+      textAlign: 'auto',      // 'auto' | 'justify' | 'center'
+      commLayout: 'flow',     // 'flow' = commentary paragraphs flow inline | 'blocks'
+      minMishnaFontPx: DEFAULT_MIN_FONT_PX,
+      maxMishnaFontPx: DEFAULT_MAX_FONT_PX,
+      marginTop: 0.5,         // inches, text inset from the page edges
+      marginRight: 0.6,
+      marginBottom: 0.5,
+      marginLeft: 0.6,
     },
   };
 }
@@ -207,6 +235,19 @@ export function normalizeSettings(raw) {
   dd.showAttribution = asBool(d.showAttribution, DEFAULTS.design.showAttribution);
   dd.showProjectDedication = asBool(d.showProjectDedication, DEFAULTS.design.showProjectDedication);
   dd.quality = QUALITY_IDS.has(d.quality) ? d.quality : DEFAULTS.design.quality;
+  dd.layoutMode = LAYOUT_MODES.has(d.layoutMode) ? d.layoutMode : DEFAULTS.design.layoutMode;
+  dd.textAlign = TEXT_ALIGNMENTS.has(d.textAlign) ? d.textAlign : DEFAULTS.design.textAlign;
+  dd.commLayout = COMMENTARY_LAYOUTS.has(d.commLayout) ? d.commLayout : DEFAULTS.design.commLayout;
+  let minPx = clampInt(d.minMishnaFontPx, MIN_FONT_PX_MIN, MIN_FONT_PX_MAX, DEFAULT_MIN_FONT_PX);
+  let maxPx = clampInt(d.maxMishnaFontPx, MAX_FONT_PX_MIN, MAX_FONT_PX_MAX, DEFAULT_MAX_FONT_PX);
+  if (minPx > maxPx) maxPx = minPx; // the ceiling always covers the floor
+  dd.minMishnaFontPx = minPx;
+  dd.maxMishnaFontPx = maxPx;
+  const margin = (v, fallback) => Math.round(clampNum(v, MARGIN_MIN_IN, MARGIN_MAX_IN, fallback) * 100) / 100;
+  dd.marginTop = margin(d.marginTop, DEFAULTS.design.marginTop);
+  dd.marginRight = margin(d.marginRight, DEFAULTS.design.marginRight);
+  dd.marginBottom = margin(d.marginBottom, DEFAULTS.design.marginBottom);
+  dd.marginLeft = margin(d.marginLeft, DEFAULTS.design.marginLeft);
 
   return out;
 }

@@ -7,10 +7,11 @@
  * no offline fallback (the bundled content in assets/content covers the offline
  * example); everything else is cache-first.
  */
-const CACHE = 'mishna-poster-bc371ea6187a';
+const CACHE = 'mishna-poster-5e2243e53939';
 const PRECACHE = [
   "index.html",
   "manifest.webmanifest",
+  "robots.txt",
   "./",
   "assets/css/fonts.css",
   "assets/css/main.css",

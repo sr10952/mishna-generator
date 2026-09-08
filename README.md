@@ -3,9 +3,10 @@
 A free, fully client-side web app that generates **printable daily-Mishnah study posters**
 from open-source [Sefaria](https://sefaria.org) texts. Pick where you're starting
 (e.g. *Bekhorot 3:2*), how many mishnayot (up to 30), and which days of the week to
-learn — the app builds the schedule, lays out **one mishna per Letter, Legal, Tabloid,
-or custom-size page** with the Hebrew date, weekday, weekly parasha and day counter,
-and exports a ready-to-print PDF.
+learn — the app builds the schedule and lays it out on **Letter, Legal, Tabloid, or
+custom-size pages** with the Hebrew date, weekday, weekly parasha and day counter:
+one mishna stretched to fill each page, or several mishnayot packed per page. Export
+is a ready-to-print PDF.
 
 Everything runs in the browser. There is **no build step, no backend, and no tracking**.
 The app ships with a **bundled offline text store** (`assets/content/`) containing the
@@ -31,6 +32,9 @@ and served locally.
 **Poster content**
 - Mishna text from Sefaria — with or without nikud, Hebrew or English (translation)
 - Commentaries: Bartenura, Rambam, Tosafot Yom Tov (each toggleable)
+- Commentary דיבור המתחיל paragraphs are **joined into flowing sefer-style text**
+  by default (a toggle restores one-line-per-comment blocks), reclaiming a full
+  line per commentary unit
 - Per-page dynamic header: weekday, Hebrew date (month name without a leading ב־), weekly parasha, "day N of M" counter
 - Weekday display can match the poster, use the traditional Yiddish names (זונטאג through שב"ק), be hidden, or use seven custom labels
 - Optional date-aware Yom Tov / holiday line, including Chol HaMoed; choose Hebrew, Yiddish, or English wording and it respects the Israel / Diaspora setting. Holiday Torah readings are omitted from the separate parasha field to avoid duplicate date context
@@ -44,6 +48,12 @@ and served locally.
 - Upload your own **logo** and **background image** for a fully custom letterhead
 - Accent color picker, independent mishna and commentary font choices, overlay darkness control for background images
 - Letter (8.5″ × 11″), Legal (8.5″ × 14″), and Tabloid (11″ × 17″) presets, plus a custom width × height size from 5″ to 17″ on each side — consistently applied to preview, PDF, PNG, and print
+- **Layout options** (Design → Layout):
+  - **One mishna per page** — auto-stretched to fill the page, with a user-set ceiling font size (default 64 px)
+  - **Pack as many mishnas per page as fit** — pages are filled greedily down to a floor font size (default 14 px) before breaking to the next page; several learning days share a page and the schedule table still jumps to the right page
+  - **Margins** — independent top / right / bottom / left insets (inches) that move the text in from each page edge, so text never collides with pre-printed stationery, template borders, or drawn-over artwork
+  - **Text alignment** — language-native right/left, justified, or centered (applies to mishna and commentary)
+  - **Commentary layout** — flowing paragraphs (default, space-saving) or classic one-line-per-דיבור-המתחיל blocks
 
 **Saved profiles & backup**
 - Save the whole configuration under a name, then **load**, **rename**, or **delete** it
@@ -74,10 +84,16 @@ and served locally.
   pure Hebrew so native-Hebrew posters stay Latin-free
 
 **Output**
-- **PDF download** — the selected Letter, Legal, Tabloid, or custom size; one mishna per page, 192 / 288 / 384 DPI
+- **PDF download** — the selected Letter, Legal, Tabloid, or custom size; one mishna per page or several packed per page, 192 / 288 / 384 DPI
 - **Vector print** via the browser print dialog (`Ctrl/Cmd-P`) — smallest files, crisp text, and the selected physical page size (including custom landscape dimensions)
 - **PNG export** of the current page at the selected physical page dimensions
 - All settings persist in `localStorage`
+
+**SEO / discovery**
+- `robots.txt` allowing full indexing (and precached by the service worker)
+- Search-engine meta tags: description, robots, application-name, **Open Graph** and
+  **Twitter Card** social tags, plus a **JSON-LD `WebApplication`** structured-data
+  block — everything stays static, so any host serves it with no configuration
 
 **Interface**
 - Full **native Hebrew mode**: RTL layout, Hebrew UI strings, Hebrew dates,
@@ -103,8 +119,8 @@ then open <http://localhost:8930>. (ES modules require http:// — `file://` won
 
 ```bash
 npm install        # dev deps only (puppeteer-core + @sparticuz/chromium for headless tests)
-npm test           # 73 unit tests
-npm run test:e2e   # 33 end-to-end scenarios in real headless Chromium (offline, fixture-driven)
+npm test           # 76 unit tests
+npm run test:e2e   # 36 end-to-end scenarios in real headless Chromium (offline, fixture-driven)
 npm run test:all   # everything
 ```
 
@@ -124,11 +140,18 @@ scenarios cover the memorial project dedication (default-on, confirm-to-remove, 
 saved-profile save/load/rename/delete; JSON backup export/import (image-free, validated);
 bundled content rendering the example with the Sefaria API fully blocked; graceful
 degradation to the API when the bundled store is unavailable; and the PWA
-manifest / icons / service worker being served.
+manifest / icons / service worker being served. The **Layout** scenarios drive the real
+controls end-to-end: flowing commentary collapses to a single running paragraph,
+margins move the text region (48 px ↔ 120 px insets verified), justify/center/right
+alignment applies, and fill mode packs all four Bekhorot mishnayot onto fewer pages
+with every unit present, nothing overflowing, fonts inside the floor/ceiling bounds,
+and the schedule table jumping to the packed page that holds a clicked day. A further
+scenario checks `robots.txt`, the Open Graph / Twitter tags, and the JSON-LD block.
 
 The unit suite adds focused coverage for the settings schema and migration/normalization
-(`settings.test.mjs`), profile serialization, limits, and backup validation
-(`profiles.test.mjs`), and the bundled content store (`content.test.mjs`).
+(`settings.test.mjs`), including the layout enums, font floor/ceiling limits, and page
+margin bounds; profile serialization, limits, and backup validation
+(`profiles.test.mjs`); and the bundled content store (`content.test.mjs`).
 
 ## Project structure
 
@@ -136,6 +159,7 @@ The unit suite adds focused coverage for the settings schema and migration/norma
 index.html              the whole app (single page)
 manifest.webmanifest    PWA manifest
 sw.js                   offline-first service worker (generated by tools/build-sw.mjs)
+robots.txt              SEO allow-all; precached by the service worker
 assets/
   css/                  main.css (app UI + modals), poster.css (print/poster geometry), fonts.css
   js/
@@ -156,10 +180,10 @@ assets/
   fonts/                self-hosted woff2 (Frank Ruhl Libre, David Libre, Heebo, Miriam Libre)
   vendor/               html2canvas 1.4.1, jsPDF 3 (self-hosted, MIT)
 tests/
-  unit/                 73 unit tests (node --test): hebrew, i18n, poster, schedule,
+  unit/                 76 unit tests (node --test): hebrew, i18n, poster, schedule,
                         settings, profiles, content
   e2e/                  e2e.mjs + browser.mjs (chromium bootstrap, static server,
-                        Sefaria fixture interceptor) — 33 scenarios, runs fully offline
+                        Sefaria fixture interceptor) — 36 scenarios, runs fully offline
   fixtures/             recorded Sefaria API responses
 tools/build-fixtures.mjs rebuilds the fixtures from the live API
 tools/fetch-corpus-github.mjs  bulk-builds the offline corpus (whole Mishnah) from

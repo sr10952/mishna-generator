@@ -21,6 +21,12 @@
   --pg-title-color: var(--pg-ink);
   --pg-head-band: transparent;
   --pg-head-band-ink: var(--pg-ink);
+  /* Text margins (px, set from the Layout settings in inches). Fallbacks keep
+     the classic letter geometry when no inline values are present. */
+  --pg-mt: 46px;
+  --pg-mr: 56px;
+  --pg-mb: 40px;
+  --pg-ml: 56px;
 
   position: relative;
   width: var(--pg-page-width);
@@ -73,7 +79,7 @@
 
 .poster-page .pg-content {
   position: absolute;
-  inset: 46px 56px 40px 56px;
+  inset: var(--pg-mt) var(--pg-mr) var(--pg-mb) var(--pg-ml);
   z-index: 3;
   display: flex;
   flex-direction: column;
@@ -212,8 +218,19 @@
 /* explicit physical alignment (html2canvas does not resolve text-align:start) */
 .poster-he .pg-text, .poster-he .pg-comm-text { text-align: right; }
 .poster-en .pg-text, .poster-en .pg-comm-text { text-align: left; }
-.poster-page .pg-comm-text p { margin: 0 0 0.5em; }
-.poster-page .pg-comm-text p:last-child { margin-bottom: 0; }
+/* optional Layout alignment: justify / centered body text */
+.poster-page[data-align='justify'] .pg-text,
+.poster-page[data-align='justify'] .pg-comm-text { text-align: justify; }
+.poster-page[data-align='center'] .pg-text,
+.poster-page[data-align='center'] .pg-comm-text { text-align: center; }
+
+/* Commentary paragraphs. "Blocks" (the classic look) start each דיבור
+   המתחיל on its own line; "flow" (default) joins the units into one running
+   paragraph like a sefer, which saves a full line of space per commentary
+   unit (poster.js does the joining so the PDF raster sees the same DOM). */
+.poster-page.comm-blocks .pg-comm-text p { margin: 0 0 0.5em; }
+.poster-page.comm-blocks .pg-comm-text p:last-child { margin-bottom: 0; }
+.poster-page.comm-flow .pg-comm-text p { margin: 0; }
 
 /* footer */
 .poster-page .pg-foot {
@@ -244,6 +261,42 @@
 
 /* English posters: slightly different typography */
 .poster-page.poster-en .pg-text { font-weight: 400; line-height: 1.65; }
+
+/* ==========================================================================
+   Fill layout - several mishnas packed onto one page
+   ========================================================================== */
+
+.poster-page.layout-fill .pg-units {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.poster-page.layout-fill .pg-unit {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+/* A hairline separates consecutive mishnas on the same page. */
+.poster-page.layout-fill .pg-unit + .pg-unit {
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1.5px solid var(--pg-foot-rule, var(--pg-frame));
+}
+/* Compact chrome: the fixed-size headers must not dwarf a packed body. */
+.poster-page.layout-fill .pg-head + .pg-units { margin-top: 10px; }
+.poster-page.layout-fill .pg-info { margin: 2px auto 0; }
+.poster-page.layout-fill .pg-badge { font-size: 13px; padding: 2px 11px; }
+.poster-page.layout-fill .pg-info-bit { font-size: 14px; font-weight: 600; }
+.poster-page.layout-fill .pg-info-bit:not(:last-child)::after { margin-inline-start: 9px; }
+.poster-page.layout-fill .pg-ref { font-size: 21px; margin: 5px 0 3px; line-height: 1.25; }
+.poster-page.layout-fill .pg-ref::after { width: 90px; height: 2px; margin: 5px auto 0; }
+.poster-page.layout-fill .pg-main { padding-top: 5px; }
+.poster-page.layout-fill .pg-commentary { margin-top: 0.6em; }
+.poster-page.layout-fill .pg-commentary .pg-comm-label { font-size: 0.85em; }
 
 /* ==========================================================================
    Built-in templates

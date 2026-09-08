@@ -1,5 +1,7 @@
 # Mishna Poster Generator · מחולל כרזות משנה
 
+**🌐 Official live site for public consumption: [https://mishna-generator.pages.dev/](https://mishna-generator.pages.dev/)**
+
 A free, fully client-side web app that generates **printable daily-Mishnah study posters**
 from open-source [Sefaria](https://sefaria.org) texts. Pick where you're starting
 (e.g. *Bekhorot 3:2*), how many mishnayot (up to 30), and which days of the week to
@@ -103,7 +105,9 @@ and served locally.
 
 ## Quick start
 
-The site is 100% static. Serve it with any static server:
+**Public users:** just visit the official live site at **[https://mishna-generator.pages.dev/](https://mishna-generator.pages.dev/)** — no installation needed.
+
+For local development, the site is 100% static. Serve it with any static server:
 
 ```bash
 npm start          # npx serve -l 8930 .

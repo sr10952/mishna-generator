@@ -1,0 +1,7 @@
+# Mishna Poster Generator - search engines are welcome.
+# The whole app is static client-side content; nothing needs to be excluded.
+User-agent: *
+Allow: /
+
+# No private paths exist on this site (profiles & backups stay in the
+# visitor's own browser/localStorage and are never uploaded).

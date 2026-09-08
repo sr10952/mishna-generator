@@ -9,9 +9,13 @@ import { buildSchedule, validateSettings, MAX_MISHNAS, totalMishnas } from './sc
 import { apiRef, commentaryRef, formatHebrewDate, formatGregorianDate, formatWeekday, parseISODate, isoDate, saturdayOf, gematria, masechetHeName, containsLatinLetters, getYomTovInfo } from './hebrew.js';
 import { getCalendar, runPool, clearSefariaCache } from './sefaria.js';
 import { getText } from './content.js';
-import { buildPosterPage, autofitPage, ensureFontsLoaded, TEMPLATES, FONTS, getPageSize, getPageSizeForElement, randomTemplate } from './poster.js';
+import { buildPosterPage, paginateFillPages, autofitPage, ensureFontsLoaded, TEMPLATES, FONTS, getPageSize, getPageSizeForElement, randomTemplate } from './poster.js';
 import { generatePdf, renderPagePng, savePdf, suggestedFilename, QUALITIES } from './pdf.js';
-import { normalizeSettings, WEEKDAY_DISPLAY_STYLES, YOM_TOV_DISPLAY_STYLES } from './settings.js';
+import {
+  normalizeSettings, WEEKDAY_DISPLAY_STYLES, YOM_TOV_DISPLAY_STYLES,
+  MIN_FONT_PX_MIN, MIN_FONT_PX_MAX, MAX_FONT_PX_MIN, MAX_FONT_PX_MAX,
+  MARGIN_MIN_IN, MARGIN_MAX_IN,
+} from './settings.js';
 import {
   MAX_PROFILES, PROFILE_OK, readProfiles, writeProfiles, saveProfile as saveProfileEntry,
   loadProfile as loadProfileEntry, renameProfile as renameProfileEntry, deleteProfile as deleteProfileEntry,
@@ -31,6 +35,7 @@ let entryData = [];       // per-entry {text, commentaries, calendar, error}
 let stagePages = [];      // built poster elements (render stage)
 let pageIndex = 0;
 let contentHash = '';     // detects schedule/content changes => stale state
+let entryToPage = [];     // schedule entry index -> stage page index (-1 = no page)
 
 function loadSettings() {
   // normalizeSettings performs the forward/backward-compatible deep merge onto
@@ -391,7 +396,9 @@ function updateScheduleTable() {
     const ref = he ? `${masechetHeName(m)} ${gematria(entry.chapter)}:${gematria(entry.mishna)}` : `${m.title} ${entry.chapter}:${entry.mishna}`;
     const cal = entryData[i] && entryData[i].calendar;
     const parsha = cal && cal.parsha ? (he ? cal.parsha.he : cal.parsha.en) : t('noParsha');
-    const tr = el('tr', i === pageIndex ? 'current' : '');
+    // In fill layout several schedule days share one page; highlight the row
+    // of whichever entry the previewed page currently contains.
+    const tr = el('tr', entryToPage[i] === pageIndex ? 'current' : '');
     tr.innerHTML = `
       <td>${he ? gematria(i + 1) : i + 1}</td>
       <td>${formatHebrewDate(date, he ? 'he' : 'en')}<br><span style="color:var(--ui-muted)">${formatGregorianDate(date, he ? 'he' : 'en')}</span></td>
@@ -400,7 +407,11 @@ function updateScheduleTable() {
       <td class="ref-cell">${escapeHtml(ref)}</td>
       <td>${entryData[i] && entryData[i].error ? '<span class="err-cell">✗</span>' : ''}</td>`;
     tr.addEventListener('click', () => {
-      if (stagePages[i]) { renderPreview(i); if (window.innerWidth <= 720) switchTab('preview'); }
+      const target = entryToPage[i];
+      if (target !== undefined && target >= 0 && stagePages[target]) {
+        renderPreview(target);
+        if (window.innerWidth <= 720) switchTab('preview');
+      }
     });
     tr.style.cursor = 'pointer';
     tbody.appendChild(tr);
@@ -509,14 +520,69 @@ function templateDef() {
   return TEMPLATES.find((x) => x.id === settings.design.template) || TEMPLATES[0];
 }
 
+function pageSettings() {
+  return {
+    diaspora: settings.diaspora,
+    text: settings.text,
+    design: { ...settings.design, templateDef: templateDef() },
+  };
+}
+
 function rebuildAllPages() {
   const stage = $('renderStage');
   const pageSize = syncPageSize();
   stage.style.width = `${pageSize.width}px`;
   stage.innerHTML = '';
   stagePages = [];
+  entryToPage = schedule ? schedule.entries.map(() => -1) : [];
   if (!schedule || !entryData.length) return;
+  const compacted = rebuildPagesForLayout(stage);
+  const warn = $('warnLine');
+  if (compacted) warn.textContent = t('warnCompact');
+  else if (schedule && schedule.wrappedToStart) warn.textContent = t('warnWrap');
+  else warn.textContent = '';
+}
+
+function rebuildPagesForLayout(stage) {
+  const design = settings.design;
+  const lang = posterLang();
   let compacted = false;
+
+  if (design.layoutMode === 'fill') {
+    // Pack as many mishnas per page as fit at the floor font size; the page
+    // breaks when even the floor no longer fits the next mishna.
+    const entries = [];
+    schedule.entries.forEach((entry, i) => {
+      const d = entryData[i];
+      if (!d || !d.text) return;
+      entries.push({
+        entry,
+        textData: d.text,
+        commentaries: d.commentaries || [],
+        calendar: d.calendar,
+        dayIndex: i + 1,
+        entryIndex: i,
+      });
+    });
+    const { pages, flagged } = paginateFillPages({
+      entries,
+      settings: pageSettings(),
+      lang,
+      stage,
+      total: schedule.entries.length,
+    });
+    stagePages = pages;
+    pages.forEach((page, pageIdx) => {
+      page.querySelectorAll('.pg-unit').forEach((unit) => {
+        const ei = Number(unit.dataset.entry);
+        if (Number.isInteger(ei) && ei >= 0) entryToPage[ei] = pageIdx;
+      });
+    });
+    return flagged;
+  }
+
+  // Classic single-mishna pages: one mishna per page, auto-fitted between the
+  // floor and the ceiling font sizes set in Layout.
   schedule.entries.forEach((entry, i) => {
     const d = entryData[i];
     if (!d || !d.text) return;
@@ -527,22 +593,20 @@ function rebuildAllPages() {
       calendar: d.calendar,
       index: i + 1,
       total: schedule.entries.length,
-      settings: {
-        diaspora: settings.diaspora,
-        text: settings.text,
-        design: { ...settings.design, templateDef: templateDef() },
-      },
-      lang: posterLang(),
+      settings: pageSettings(),
+      lang,
     });
     stage.appendChild(page);
-    const scale = autofitPage(page, { userScale: 1 });
+    entryToPage[i] = stagePages.length;
+    const scale = autofitPage(page, {
+      userScale: 1,
+      minTextPx: design.minMishnaFontPx,
+      maxTextPx: design.maxMishnaFontPx,
+    });
     if (scale < 0.58 || page.dataset.fitAtFloor === 'true' || page.dataset.fitOverflow === '1') compacted = true;
     stagePages.push(page);
   });
-  const warn = $('warnLine');
-  if (compacted) warn.textContent = t('warnCompact');
-  else if (schedule && schedule.wrappedToStart) warn.textContent = t('warnWrap');
-  else warn.textContent = '';
+  return compacted;
 }
 
 async function rebuildAllPagesWithFonts() {
@@ -935,6 +999,56 @@ function wire() {
   $('customPageWidth').addEventListener('change', updateCustomPageSize);
   $('customPageHeight').addEventListener('change', updateCustomPageSize);
   syncCustomPageSizeControls();
+
+  // layout options
+  $('layoutModeSel').value = settings.design.layoutMode;
+  $('layoutModeSel').addEventListener('change', (e) => {
+    settings.design.layoutMode = e.target.value === 'fill' ? 'fill' : 'single';
+    onDesignSettingChange();
+  });
+  $('textAlignSel').value = settings.design.textAlign;
+  $('textAlignSel').addEventListener('change', (e) => {
+    settings.design.textAlign = ['auto', 'justify', 'center'].includes(e.target.value) ? e.target.value : 'auto';
+    onDesignSettingChange();
+  });
+  $('commLayoutSel').value = settings.design.commLayout;
+  $('commLayoutSel').addEventListener('change', (e) => {
+    settings.design.commLayout = e.target.value === 'blocks' ? 'blocks' : 'flow';
+    onDesignSettingChange();
+  });
+  const clampFontPx = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.floor(Number(v)) || lo));
+  const syncFontLimits = () => {
+    const lo = clampFontPx($('minMishnaFontPx').value, MIN_FONT_PX_MIN, MIN_FONT_PX_MAX);
+    let hi = clampFontPx($('maxMishnaFontPx').value, MAX_FONT_PX_MIN, MAX_FONT_PX_MAX);
+    if (lo > hi) hi = lo; // floor may never exceed ceiling
+    settings.design.minMishnaFontPx = lo;
+    settings.design.maxMishnaFontPx = hi;
+    $('minMishnaFontPx').value = String(lo);
+    $('maxMishnaFontPx').value = String(hi);
+    onDesignSettingChange();
+  };
+  $('minMishnaFontPx').value = settings.design.minMishnaFontPx;
+  $('maxMishnaFontPx').value = settings.design.maxMishnaFontPx;
+  $('minMishnaFontPx').addEventListener('change', syncFontLimits);
+  $('maxMishnaFontPx').addEventListener('change', syncFontLimits);
+
+  const clampMargin = (v) => Math.round(Math.max(MARGIN_MIN_IN, Math.min(MARGIN_MAX_IN, Number(v) || 0)) * 100) / 100;
+  const marginIds = ['marginTop', 'marginRight', 'marginBottom', 'marginLeft'];
+  const syncMargins = () => {
+    for (const key of marginIds) settings.design[key] = clampMargin($(key).value);
+    onDesignSettingChange();
+  };
+  for (const key of marginIds) {
+    const input = $(key);
+    input.value = settings.design[key];
+    input.addEventListener('change', () => {
+      const v = clampMargin(input.value);
+      settings.design[key] = v;
+      input.value = String(v);
+      syncMargins();
+    });
+  }
+
   $('accentColor').value = settings.design.accent;
   $('accentColor').addEventListener('input', (e) => {
     settings.design.accent = e.target.value;
@@ -1203,6 +1317,14 @@ function refreshFormFromSettings() {
   renderFontOptions();
   $('pageSizeSel').value = getPageSize(settings.design).id;
   syncCustomPageSizeControls();
+  $('layoutModeSel').value = settings.design.layoutMode;
+  $('textAlignSel').value = settings.design.textAlign;
+  $('commLayoutSel').value = settings.design.commLayout;
+  $('minMishnaFontPx').value = settings.design.minMishnaFontPx;
+  $('maxMishnaFontPx').value = settings.design.maxMishnaFontPx;
+  for (const key of ['marginTop', 'marginRight', 'marginBottom', 'marginLeft']) {
+    $(key).value = settings.design[key];
+  }
   $('accentColor').value = settings.design.accent;
   $('institution').value = settings.design.institution;
   $('dedication').value = settings.design.dedication;

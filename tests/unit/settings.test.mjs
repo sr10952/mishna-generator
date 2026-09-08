@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   DEFAULTS, makeDefaults, normalizeSettings, stripImages, safeImageDataUrl,
   SETTINGS_SCHEMA_VERSION, PROJECT_DEDICATION_HE,
+  DEFAULT_MIN_FONT_PX, DEFAULT_MAX_FONT_PX,
 } from '../../assets/js/settings.js';
 
 test('DEFAULTS is a complete, self-consistent schema', () => {
@@ -12,6 +13,76 @@ test('DEFAULTS is a complete, self-consistent schema', () => {
   assert.equal(DEFAULTS.design.pageSize, 'letter');
   assert.equal(DEFAULTS.design.showProjectDedication, true);
   assert.equal(DEFAULTS.design.showAttribution, true);
+  // Layout options keep a sane, backwards-compatible default state.
+  assert.equal(DEFAULTS.design.layoutMode, 'single');
+  assert.equal(DEFAULTS.design.textAlign, 'auto');
+  assert.equal(DEFAULTS.design.commLayout, 'flow');
+  assert.equal(DEFAULTS.design.minMishnaFontPx, DEFAULT_MIN_FONT_PX);
+  assert.equal(DEFAULTS.design.maxMishnaFontPx, DEFAULT_MAX_FONT_PX);
+  assert.ok(DEFAULTS.design.maxMishnaFontPx >= DEFAULTS.design.minMishnaFontPx);
+  assert.equal(DEFAULTS.design.marginTop, 0.5);
+  assert.equal(DEFAULTS.design.marginBottom, 0.5);
+  assert.equal(DEFAULTS.design.marginRight, 0.6);
+  assert.equal(DEFAULTS.design.marginLeft, 0.6);
+});
+
+test('legacy settings without layout fields are repaired to the defaults', () => {
+  const s = normalizeSettings({ design: { template: 'modern' } });
+  assert.equal(s.design.layoutMode, 'single');
+  assert.equal(s.design.textAlign, 'auto');
+  assert.equal(s.design.commLayout, 'flow');
+  assert.equal(s.design.minMishnaFontPx, DEFAULT_MIN_FONT_PX);
+  assert.equal(s.design.maxMishnaFontPx, DEFAULT_MAX_FONT_PX);
+  assert.deepEqual(
+    [s.design.marginTop, s.design.marginRight, s.design.marginBottom, s.design.marginLeft],
+    [0.5, 0.6, 0.5, 0.6],
+  );
+});
+
+test('normalizeSettings validates the layout enums and font limits', () => {
+  const s = normalizeSettings({
+    design: {
+      layoutMode: 'fill',
+      textAlign: 'justify',
+      commLayout: 'blocks',
+      minMishnaFontPx: 18,
+      maxMishnaFontPx: 90,
+    },
+  });
+  assert.equal(s.design.layoutMode, 'fill');
+  assert.equal(s.design.textAlign, 'justify');
+  assert.equal(s.design.commLayout, 'blocks');
+  assert.equal(s.design.minMishnaFontPx, 18);
+  assert.equal(s.design.maxMishnaFontPx, 90);
+
+  const bad = normalizeSettings({
+    design: {
+      layoutMode: 'waterfall',
+      textAlign: 'stretch',
+      commLayout: 'zigzag',
+      minMishnaFontPx: -3,
+      maxMishnaFontPx: 9999,
+    },
+  });
+  assert.equal(bad.design.layoutMode, 'single');
+  assert.equal(bad.design.textAlign, 'auto');
+  assert.equal(bad.design.commLayout, 'flow');
+  // Numeric limits are clamped to their ranges (invalid *types* fall back).
+  assert.equal(bad.design.minMishnaFontPx, 11);
+  assert.equal(bad.design.maxMishnaFontPx, 200);
+
+  // The ceiling always covers the floor.
+  const crossed = normalizeSettings({ design: { minMishnaFontPx: 80, maxMishnaFontPx: 20 } });
+  assert.equal(crossed.design.maxMishnaFontPx, crossed.design.minMishnaFontPx);
+  assert.equal(crossed.design.minMishnaFontPx, 80);
+});
+
+test('normalizeSettings bounds the page margins to 0..2 inches', () => {
+  const s = normalizeSettings({ design: { marginTop: 5, marginBottom: -1, marginLeft: '1.25', marginRight: 'oops' } });
+  assert.equal(s.design.marginTop, 2);
+  assert.equal(s.design.marginBottom, 0);
+  assert.equal(s.design.marginLeft, 1.25);
+  assert.equal(s.design.marginRight, DEFAULTS.design.marginRight);
 });
 
 test('makeDefaults returns fresh clones (no shared mutation)', () => {

@@ -239,8 +239,231 @@ function yomTovDisplayLanguage(design, he) {
   return he ? 'he' : 'en';
 }
 
+/* ---------------------------------------------------------------------------
+ * Shared poster geometry
+ * ------------------------------------------------------------------------- */
+
+/** Auto-fit typography constants (CSS px). BASE_TEXT is the design size for
+ *  the mishna body; everything else scales from it. */
+const BASE_TEXT = 33;
+const BASE_COMM = 16;
+const MIN_COMM = 8;
+const COMM_MAX_RATIO = 0.8;
+const START_SCALE = 1.06;
+// Historic hard floor used when a caller does not supply a user preference.
+const MIN_TEXT_DEFAULT = 11;
+
+/** inches -> CSS px at the 96 px/in poster grid */
+function pxFromInches(value) {
+  const n = Number(value);
+  return Math.round((Number.isFinite(n) ? n : 0) * CSS_PIXELS_PER_INCH);
+}
+
+function commentaryPxFor(textPx) {
+  // The commentary stays proportional to the mishna (16px @ 33px), never above
+  // 80% of it, and never below its own readable floor.
+  return Math.min(textPx * COMM_MAX_RATIO, Math.max(MIN_COMM, textPx * (BASE_COMM / BASE_TEXT)));
+}
+
+function setPageSizeData(page, pageSize) {
+  page.dataset.pageSize = pageSize.id;
+  page.dataset.pageWidth = String(pageSize.width);
+  page.dataset.pageHeight = String(pageSize.height);
+  page.dataset.pageWidthIn = String(pageSize.widthIn);
+  page.dataset.pageHeightIn = String(pageSize.heightIn);
+}
+
 /**
- * Build one poster page element.
+ * Create the reusable poster page shell (background layers, decorative
+ * frames, typography variables, margins) plus its content column. The caller
+ * fills .pg-content and returns a fully dressed element.
+ */
+function createPageShell({ settings, pageSize, template, he, layoutMode }) {
+  const design = settings.design;
+  const page = el('div', `poster-page ${template.cls} poster-${he ? 'he' : 'en'} layout-${layoutMode}`);
+  page.dir = he ? 'rtl' : 'ltr';
+  page.lang = he ? 'he' : 'en';
+  page.dataset.layout = layoutMode;
+  page.style.setProperty('--pg-accent', design.accent || template.accent);
+  if (template.palette) {
+    for (const [k, v] of Object.entries(template.palette)) page.style.setProperty(`--pg-${k}`, v);
+  }
+  if (design.frame) page.style.setProperty('--pg-frame-style', design.frame);
+  page.style.setProperty('--pg-font', (FONTS[design.font] || FONTS.frank).css);
+  page.style.setProperty('--pg-comm-font', (FONTS[design.commentaryFont] || FONTS[design.font] || FONTS.frank).css);
+  page.style.setProperty('--pg-page-width', `${pageSize.width}px`);
+  page.style.setProperty('--pg-page-height', `${pageSize.height}px`);
+
+  // Text margins: the distance the content column keeps from each page edge.
+  // These complement the page size so pre-printed templates / drawn-over
+  // artwork can reserve their own gutters.
+  page.style.setProperty('--pg-mt', `${pxFromInches(design.marginTop)}px`);
+  page.style.setProperty('--pg-mr', `${pxFromInches(design.marginRight)}px`);
+  page.style.setProperty('--pg-mb', `${pxFromInches(design.marginBottom)}px`);
+  page.style.setProperty('--pg-ml', `${pxFromInches(design.marginLeft)}px`);
+
+  // Justify / centered body text (auto keeps the per-language default).
+  if (design.textAlign && design.textAlign !== 'auto') page.dataset.align = design.textAlign;
+  // Commentary flow: paragraphs run inline (sefarim-style) or block lines.
+  page.classList.add(design.commLayout === 'blocks' ? 'comm-blocks' : 'comm-flow');
+
+  setPageSizeData(page, pageSize);
+
+  // --- background layers -----------------------------------------------
+  if (design.bgDataUrl) {
+    page.appendChild(el('div', 'pg-bg')).style.backgroundImage = `url(${design.bgDataUrl})`;
+    const overlay = el('div', 'pg-overlay');
+    overlay.style.setProperty('--pg-overlay-alpha', String(design.bgOverlay ?? 0.85));
+    page.appendChild(overlay);
+  }
+  page.appendChild(el('div', 'pg-frame pg-frame-outer'));
+  page.appendChild(el('div', 'pg-frame pg-frame-inner'));
+
+  // --- content column ----------------------------------------------------
+  const content = el('div', 'pg-content');
+  page.appendChild(content);
+  return { page, content };
+}
+
+/** Letterhead block (logo / institution / dedication) or null when empty. */
+function buildPosterHead(design) {
+  const head = el('header', 'pg-head');
+  if (design.logoDataUrl) {
+    const img = el('img', 'pg-logo');
+    img.src = design.logoDataUrl;
+    img.alt = '';
+    head.appendChild(img);
+  }
+  if (design.institution) {
+    head.appendChild(el('div', 'pg-inst', esc(design.institution)));
+  }
+  if (design.dedication) {
+    head.appendChild(el('div', 'pg-dedication', esc(design.dedication)));
+  }
+  return head.childElementCount ? head : null;
+}
+
+/** Poster info bar: badge (optional) + weekday/date + holiday + parsha + day count. */
+function buildPosterInfo({ date, design, he, calendar, index, total, settings, showBadge }) {
+  const infoBits = [];
+  if (design.showDate !== false) {
+    const datePieces = [
+      formatPosterWeekday(date, design, he),
+      formatHebrewDate(date, he ? 'he' : 'en'),
+    ].filter(Boolean);
+    if (datePieces.length) infoBits.push(datePieces.join(' · '));
+  }
+  if (design.showYomTovName === true) {
+    // Main.js stores the per-entry value so all generated output is stable,
+    // even if the weekly calendar request failed. Keep this fallback for
+    // direct callers and legacy entry data.
+    const yomTov = (calendar && calendar.yomTov) || getYomTovInfo(date, {
+      diaspora: settings.diaspora !== false,
+    });
+    const yomTovName = formatYomTovInfo(yomTov, {
+      lang: yomTovDisplayLanguage(design, he),
+    });
+    if (yomTovName) infoBits.push(yomTovName);
+  }
+  if (design.showParsha !== false && calendar && calendar.parsha) {
+    const raw = he ? calendar.parsha.he : calendar.parsha.en;
+    // A holiday reading may be returned in the weekly-parasha slot (for
+    // example "סוכות חג ראשון"). Suppress it rather than duplicating or
+    // misleading the date information shown immediately beside it.
+    if (raw && !isHolidayParsha(raw)) {
+      const prefix = he ? 'פרשת ' : 'Parshat ';
+      infoBits.push(`${isParshaName(raw) ? prefix : ''}${raw}`);
+    }
+  }
+  if (design.showDayCount !== false) {
+    infoBits.push(he ? `יום ${gematria(index)} מתוך ${gematria(total)}` : `Day ${index} of ${total}`);
+  }
+  // The badge is optional and its text is intentionally independent from the
+  // UI language: an institution may use its own Hebrew/English program name.
+  // Legacy saved settings do not have this field, so they retain the badge.
+  const badgeOn = showBadge && design.showDailyMishnaBadge !== false;
+  if (!badgeOn && !infoBits.length) return null;
+  const S = STRINGS[he ? 'he' : 'en'];
+  const info = el('div', 'pg-info');
+  if (badgeOn) {
+    const dailyMishnaBadgeText = String(design.dailyMishnaBadgeText || '').trim() || S.dailyMishna;
+    info.appendChild(el('span', 'pg-badge', esc(dailyMishnaBadgeText)));
+  }
+  for (const b of infoBits) info.appendChild(el('span', 'pg-info-bit', esc(b)));
+  return info;
+}
+
+/** Mishna reference title or null when disabled. */
+function buildPosterRef({ design, he, masechet, chapter, mishna }) {
+  if (design.showRef === false || !masechet) return null;
+  return el('h2', 'pg-ref', esc(formatRefTitle(masechet, chapter, mishna, he ? 'he' : 'en')));
+}
+
+/** One commentary unit may not be the same as one line of print: "flowing"
+ *  mode joins every דיבור המתחיל of a commentary into a single running
+ *  paragraph (separated by ·), exactly like a sefer's running commentary.
+ *  Block mode keeps one paragraph per unit, each starting its own line. */
+function commentaryParagraphs(c, design, applyNikud) {
+  const paras = c.paragraphs.map((p) => sanitizeText(applyNikud(p))).filter(Boolean);
+  if (!paras.length) return [];
+  if (design.commLayout === 'blocks') {
+    return paras.map((p) => el('p', null, p));
+  }
+  return [el('p', null, paras.join(' · '))];
+}
+
+/** The scrollable body: mishna paragraphs + each selected commentary block. */
+function buildPosterMain({ design, textData, commentaries, settings, he }) {
+  const main = el('div', 'pg-main');
+  const textEl = el('div', 'pg-text');
+  const applyNikud = (s) => (settings.text.nikud ? s : stripNikud(s));
+  for (const p of textData.paragraphs) {
+    textEl.appendChild(el('p', null, sanitizeText(applyNikud(p))));
+  }
+  main.appendChild(textEl);
+
+  // commentaries
+  const commWrap = el('div', 'pg-commentary');
+  for (const c of commentaries) {
+    if (!c || !c.paragraphs || !c.paragraphs.length) continue;
+    const def = COMMENTARIES[c.key];
+    const block = el('section', `pg-comm-block pg-comm-${c.key}`);
+    block.appendChild(el('h3', 'pg-comm-label', esc(he ? def.labelHe : def.labelEn)));
+    const ctext = el('div', 'pg-comm-text');
+    for (const p of commentaryParagraphs(c, design, applyNikud)) ctext.appendChild(p);
+    block.appendChild(ctext);
+    commWrap.appendChild(block);
+  }
+  if (commWrap.childElementCount) main.appendChild(commWrap);
+  return main;
+}
+
+/** Poster footer: custom note + Sefaria attribution + project dedication. */
+function buildPosterFoot({ design, textData, he }) {
+  const foot = el('footer', 'pg-foot');
+  const footLeft = el('div', 'pg-foot-note');
+  if (design.footerNote) footLeft.appendChild(el('span', null, esc(design.footerNote)));
+  const sourceBits = [];
+  if (textData) {
+    const vt = he && textData.versionTitleInHebrew ? textData.versionTitleInHebrew : textData.versionTitle;
+    if (vt && design.showAttribution !== false) sourceBits.push(he ? `טקסט: ${vt}` : `Text: ${vt}`);
+  }
+  if (design.showAttribution !== false) sourceBits.push(he ? 'באדיבות ספריא' : 'Sefaria.org');
+  if (sourceBits.length) footLeft.appendChild(el('span', 'pg-attr', esc(sourceBits.join(he ? ' · ' : ' · '))));
+  if (footLeft.childElementCount) foot.appendChild(footLeft);
+  // Project memorial dedication (on by default). Always Hebrew so native-Hebrew
+  // posters remain free of Latin text; shown in both UI languages.
+  if (design.showProjectDedication !== false) {
+    foot.appendChild(el('div', 'pg-project-dedication', esc(PROJECT_DEDICATION_HE)));
+  }
+  // Posters are intentionally independent handouts, not a bound document, so
+  // do not add a page N of M marker to their footer.
+  return foot;
+}
+
+/**
+ * Build one poster page element for a single mishna (the classic layout):
+ * letterhead, info line, reference, auto-fitted mishna + commentaries, footer.
  *
  * @param {object} p
  * @param {object} p.entry       {date, book, chapter, mishna}
@@ -260,164 +483,190 @@ export function buildPosterPage({ entry, textData, commentaries, calendar, index
   const template = design.templateDef || TEMPLATES[0];
   const date = parseISODate(entry.date);
 
-  const page = el('div', `poster-page ${template.cls} poster-${he ? 'he' : 'en'}`);
-  page.dir = he ? 'rtl' : 'ltr';
-  page.lang = he ? 'he' : 'en';
-  page.style.setProperty('--pg-accent', design.accent || template.accent);
-  if (template.palette) {
-    for (const [k, v] of Object.entries(template.palette)) page.style.setProperty(`--pg-${k}`, v);
-  }
-  if (design.frame) page.style.setProperty('--pg-frame-style', design.frame);
-  page.style.setProperty('--pg-font', (FONTS[design.font] || FONTS.frank).css);
-  page.style.setProperty('--pg-comm-font', (FONTS[design.commentaryFont] || FONTS[design.font] || FONTS.frank).css);
-  page.style.setProperty('--pg-page-width', `${pageSize.width}px`);
-  page.style.setProperty('--pg-page-height', `${pageSize.height}px`);
+  const { page, content } = createPageShell({ settings, pageSize, template, he, layoutMode: 'single' });
   page.dataset.ref = `${entry.book} ${entry.chapter}:${entry.mishna}`;
   page.dataset.page = String(index);
-  page.dataset.pageSize = pageSize.id;
-  page.dataset.pageWidth = String(pageSize.width);
-  page.dataset.pageHeight = String(pageSize.height);
-  page.dataset.pageWidthIn = String(pageSize.widthIn);
-  page.dataset.pageHeightIn = String(pageSize.heightIn);
 
-  // --- background layers -----------------------------------------------
-  if (design.bgDataUrl) {
-    page.appendChild(el('div', 'pg-bg')).style.backgroundImage = `url(${design.bgDataUrl})`;
-    const overlay = el('div', 'pg-overlay');
-    overlay.style.setProperty('--pg-overlay-alpha', String(design.bgOverlay ?? 0.85));
-    page.appendChild(overlay);
-  }
-  page.appendChild(el('div', 'pg-frame pg-frame-outer'));
-  page.appendChild(el('div', 'pg-frame pg-frame-inner'));
-
-  // --- content column ----------------------------------------------------
-  const content = el('div', 'pg-content');
-  page.appendChild(content);
-
-  // letterhead
-  const head = el('header', 'pg-head');
-  if (design.logoDataUrl) {
-    const img = el('img', 'pg-logo');
-    img.src = design.logoDataUrl;
-    img.alt = '';
-    head.appendChild(img);
-  }
-  if (design.institution) {
-    head.appendChild(el('div', 'pg-inst', esc(design.institution)));
-  }
-  if (design.dedication) {
-    head.appendChild(el('div', 'pg-dedication', esc(design.dedication)));
-  }
-  if (head.childElementCount) content.appendChild(head);
-
-  // Info bar: weekday/date, optional date-aware Yom Tov name, parsha and day
-  // count. Weekday and holiday wording are deliberately independent from the
-  // body-text language so a Yiddish date can sit above a Hebrew poster.
-  const showDate = design.showDate !== false;
-  const showParsha = design.showParsha !== false;
-  const infoBits = [];
-  if (showDate) {
-    const datePieces = [
-      formatPosterWeekday(date, design, he),
-      formatHebrewDate(date, he ? 'he' : 'en'),
-    ].filter(Boolean);
-    if (datePieces.length) infoBits.push(datePieces.join(' · '));
-  }
-  if (design.showYomTovName === true) {
-    // Main.js stores the per-entry value so all generated output is stable,
-    // even if the weekly calendar request failed. Keep this fallback for
-    // direct callers of buildPosterPage and legacy entry data.
-    const yomTov = (calendar && calendar.yomTov) || getYomTovInfo(date, {
-      diaspora: settings.diaspora !== false,
-    });
-    const yomTovName = formatYomTovInfo(yomTov, {
-      lang: yomTovDisplayLanguage(design, he),
-    });
-    if (yomTovName) infoBits.push(yomTovName);
-  }
-  if (showParsha && calendar && calendar.parsha) {
-    const raw = he ? calendar.parsha.he : calendar.parsha.en;
-    // A holiday reading may be returned in the weekly-parasha slot (for
-    // example "סוכות חג ראשון"). Suppress it rather than duplicating or
-    // misleading the date information shown immediately beside it.
-    if (raw && !isHolidayParsha(raw)) {
-      const prefix = he ? 'פרשת ' : 'Parshat ';
-      infoBits.push(`${isParshaName(raw) ? prefix : ''}${raw}`);
-    }
-  }
-  if (design.showDayCount !== false) {
-    infoBits.push(he ? `יום ${gematria(index)} מתוך ${gematria(total)}` : `Day ${index} of ${total}`);
-  }
-  // The badge is optional and its text is intentionally independent from the
-  // UI language: an institution may use its own Hebrew/English program name.
-  // Legacy saved settings do not have this field, so they retain the badge.
-  const showDailyMishnaBadge = design.showDailyMishnaBadge !== false;
-  const S = STRINGS[he ? 'he' : 'en'];
-  const dailyMishnaBadgeText = String(design.dailyMishnaBadgeText || '').trim() || S.dailyMishna;
-  if (showDailyMishnaBadge || infoBits.length) {
-    const info = el('div', 'pg-info');
-    if (showDailyMishnaBadge) info.appendChild(el('span', 'pg-badge', esc(dailyMishnaBadgeText)));
-    for (const b of infoBits) info.appendChild(el('span', 'pg-info-bit', esc(b)));
-    content.appendChild(info);
-  }
-
-  // mishna reference title
-  if (design.showRef !== false && masechet) {
-    content.appendChild(el('h2', 'pg-ref', esc(formatRefTitle(masechet, entry.chapter, entry.mishna, he ? 'he' : 'en'))));
-  }
-
-  // main text area (auto-fitted)
-  const main = el('div', 'pg-main');
-  const textEl = el('div', 'pg-text');
-  const applyNikud = (s) => (settings.text.nikud ? s : stripNikud(s));
-  for (const p of textData.paragraphs) {
-    textEl.appendChild(el('p', null, sanitizeText(applyNikud(p))));
-  }
-  main.appendChild(textEl);
-
-  // commentaries
-  const commWrap = el('div', 'pg-commentary');
-  for (const c of commentaries) {
-    if (!c || !c.paragraphs || !c.paragraphs.length) continue;
-    const def = COMMENTARIES[c.key];
-    const block = el('section', `pg-comm-block pg-comm-${c.key}`);
-    block.appendChild(el('h3', 'pg-comm-label', esc(he ? def.labelHe : def.labelEn)));
-    const ctext = el('div', 'pg-comm-text');
-    for (const p of c.paragraphs) {
-      ctext.appendChild(el('p', null, sanitizeText(applyNikud(p))));
-    }
-    block.appendChild(ctext);
-    commWrap.appendChild(block);
-  }
-  if (commWrap.childElementCount) main.appendChild(commWrap);
-  content.appendChild(main);
-
-  // footer: custom note + attribution + page number
-  const foot = el('footer', 'pg-foot');
-  const footLeft = el('div', 'pg-foot-note');
-  if (design.footerNote) footLeft.appendChild(el('span', null, esc(design.footerNote)));
-  const sourceBits = [];
-  if (textData) {
-    const vt = he && textData.versionTitleInHebrew ? textData.versionTitleInHebrew : textData.versionTitle;
-    if (vt && design.showAttribution !== false) sourceBits.push(he ? `טקסט: ${vt}` : `Text: ${vt}`);
-  }
-  if (design.showAttribution !== false) sourceBits.push(he ? 'באדיבות ספריא' : 'Sefaria.org');
-  if (sourceBits.length) footLeft.appendChild(el('span', 'pg-attr', esc(sourceBits.join(he ? ' · ' : ' · '))));
-  if (footLeft.childElementCount) foot.appendChild(footLeft);
-  // Project memorial dedication (on by default). Always Hebrew so native-Hebrew
-  // posters remain free of Latin text; shown in both UI languages.
-  if (design.showProjectDedication !== false) {
-    foot.appendChild(el('div', 'pg-project-dedication', esc(PROJECT_DEDICATION_HE)));
-  }
-  // Posters are intentionally independent handouts, not a bound document, so
-  // do not add a page N of M marker to their footer.
-  content.appendChild(foot);
+  const head = buildPosterHead(design);
+  if (head) content.appendChild(head);
+  const info = buildPosterInfo({ date, design, he, calendar, index, total, settings, showBadge: true });
+  if (info) content.appendChild(info);
+  const ref = buildPosterRef({ design, he, masechet, chapter: entry.chapter, mishna: entry.mishna });
+  if (ref) content.appendChild(ref);
+  content.appendChild(buildPosterMain({ design, textData, commentaries, settings, he }));
+  content.appendChild(buildPosterFoot({ design, textData, he }));
 
   return page;
 }
 
+/* ---------------------------------------------------------------------------
+ * Multi-mishna ("fill") pages - pack as many mishnas as fit per page while
+ * keeping the floor font size; the next page continues where the last ended.
+ * ------------------------------------------------------------------------- */
+
+function fillUnit({ entry, textData, commentaries, calendar, dayIndex, total, settings, lang, he, showBadge, entryIndex }) {
+  const design = settings.design;
+  const masechet = findMasechet(entry.book);
+  const date = parseISODate(entry.date);
+  const unit = el('div', 'pg-unit');
+  unit.dataset.entry = String(entryIndex);
+  unit.dataset.ref = `${entry.book} ${entry.chapter}:${entry.mishna}`;
+  const info = buildPosterInfo({ date, design, he, calendar, index: dayIndex, total, settings, showBadge });
+  if (info) unit.appendChild(info);
+  const ref = buildPosterRef({ design, he, masechet, chapter: entry.chapter, mishna: entry.mishna });
+  if (ref) unit.appendChild(ref);
+  unit.appendChild(buildPosterMain({ design, textData, commentaries, settings, he }));
+  return unit;
+}
+
+/** Apply one shared mishna font size to every unit currently on a fill page. */
+function applyFillScale(page, textPx) {
+  textPx = Math.round(textPx * 100) / 100;
+  page.querySelectorAll('.pg-unit .pg-text').forEach((text) => {
+    text.style.fontSize = `${textPx}px`;
+    text.style.lineHeight = String(1.55 + 0.32 * Math.min(1, textPx / BASE_TEXT));
+  });
+  page.querySelectorAll('.pg-unit .pg-commentary').forEach((comm) => {
+    const commPx = commentaryPxFor(textPx);
+    comm.style.fontSize = `${commPx}px`;
+    comm.style.lineHeight = String(1.5 + 0.25 * Math.min(1, commPx / BASE_COMM));
+  });
+}
+
 /**
- * Auto-fit mishna and commentary independently.
+ * Paginate entries into filled poster pages.
+ *
+ * Every unit carries the full info line + reference + mishna + commentaries.
+ * A page accepts one more unit whenever the whole page still fits at the floor
+ * font size; when the next unit would no longer fit even at the floor, the
+ * current page is closed (and its font size grown back up to the largest that
+ * fits, capped by the ceiling) and a new page starts. If a single mishna alone
+ * cannot fit at the floor it is force-placed and flagged, mirroring the
+ * single-per-page overflow reporting.
+ *
+ * Pages are appended to `stage` so layout metrics are real.
+ *
+ * @returns {{pages: HTMLElement[], flagged: boolean}}
+ */
+export function paginateFillPages({ entries, settings, lang, stage, total }) {
+  const he = lang === 'he';
+  const design = settings.design;
+  const pageSize = getPageSize(design);
+  const template = design.templateDef || TEMPLATES[0];
+  const minText = Math.max(MIN_TEXT_DEFAULT, Number(design.minMishnaFontPx) || MIN_TEXT_DEFAULT);
+  const maxText = Math.max(minText, Number(design.maxMishnaFontPx) || minText);
+
+  const pages = [];
+  let flagged = false;
+
+  const fits = (page) => {
+    const wrap = page.querySelector('.pg-units');
+    if (!wrap) return false;
+    return wrap.scrollHeight <= wrap.clientHeight + 2;
+  };
+
+  const newPage = (firstEntry, textData) => {
+    const { page, content } = createPageShell({ settings, pageSize, template, he, layoutMode: 'fill' });
+    page.dataset.ref = `${firstEntry.book} ${firstEntry.chapter}:${firstEntry.mishna}`;
+    const head = buildPosterHead(design);
+    if (head) content.appendChild(head);
+    const unitsWrap = el('div', 'pg-units');
+    content.appendChild(unitsWrap);
+    // The footer participates in layout from the very start so the fit
+    // measurement above it is final (single pages already do this).
+    content.appendChild(buildPosterFoot({ design, textData, he }));
+    page.__unitsWrap = unitsWrap;
+    page.__first = true;
+    stage.appendChild(page);
+    return page;
+  };
+
+  const finalizePage = (page) => {
+    // Only enlarge after membership is fixed: find the largest shared font
+    // size in [minText, maxText] the closed page still fits.
+    applyFillScale(page, minText);
+    if (!fits(page)) {
+      page.dataset.fitOverflow = '1';
+      flagged = true;
+    } else {
+      applyFillScale(page, maxText);
+      if (!fits(page)) {
+        let lo = minText;
+        let hi = maxText;
+        while (hi - lo > 0.5) {
+          const mid = (lo + hi) / 2;
+          applyFillScale(page, mid);
+          if (fits(page)) lo = mid;
+          else hi = mid;
+        }
+        applyFillScale(page, lo);
+      }
+    }
+    page.dataset.page = String(pages.length + 1);
+    const appliedPx = parseFloat(page.querySelector('.pg-text').style.fontSize) || minText;
+    page.dataset.textScale = (appliedPx / BASE_TEXT).toFixed(3);
+    page.dataset.fitAtFloor = String(page.dataset.fitOverflow === '1' || appliedPx <= minText + 0.5);
+    delete page.__unitsWrap;
+    delete page.__first;
+    pages.push(page);
+  };
+
+  const unitCount = (page) => page.__unitsWrap ? page.__unitsWrap.childElementCount : 0;
+
+  let i = 0;
+  let page = null;
+  while (i < entries.length) {
+    const item = entries[i];
+    if (!page) page = newPage(item.entry, item.textData);
+    const unit = fillUnit({
+      entry: item.entry,
+      textData: item.textData,
+      commentaries: item.commentaries || [],
+      calendar: item.calendar,
+      dayIndex: item.dayIndex,
+      total,
+      settings,
+      lang,
+      he,
+      showBadge: unitCount(page) === 0,
+      entryIndex: item.entryIndex,
+    });
+    page.__unitsWrap.appendChild(unit);
+    applyFillScale(page, minText);
+    if (fits(page)) {
+      i += 1;
+      if (page.__first) { page.dataset.fitOverflow = '0'; page.__first = false; }
+      continue;
+    }
+    // This unit does not fit alongside the existing ones at the floor.
+    page.__unitsWrap.removeChild(unit);
+    if (unitCount(page) === 0) {
+      // Even a lone mishna cannot fit at the floor: force-place it alone and
+      // flag the exceptional condition, exactly like the single-page path.
+      page.__unitsWrap.appendChild(unit);
+      applyFillScale(page, minText);
+      page.dataset.fitOverflow = '1';
+      flagged = true;
+      page.__first = false;
+      i += 1;
+      finalizePage(page);
+      page = null;
+    } else {
+      // Page is full: close it with the units it already holds and retry
+      // this unit on a fresh page.
+      finalizePage(page);
+      page = null;
+    }
+  }
+  if (page && unitCount(page) > 0) {
+    page.dataset.fitOverflow = page.dataset.fitOverflow || '0';
+    finalizePage(page);
+  }
+  return { pages, flagged };
+}
+
+/**
+ * Auto-fit mishna and commentary independently (one mishna per page).
  *
  * Commentary used to have fixed child font sizes in CSS. Changing the
  * wrapper's font size therefore did nothing, so the mishna kept shrinking
@@ -426,31 +675,33 @@ export function buildPosterPage({ entry, textData, commentaries, calendar, index
  * commentary has reached its readable floor. Commentary is never allowed to
  * exceed 80% of the actual mishna size.
  *
+ * @param {object} [opts] {userScale, minTextPx, maxTextPx} - min/max text
+ *   sizes come from the user's Layout settings when given (they replace the
+ *   historic 11px floor / 1.25x ceiling defaults).
+ *
  * Returns the applied mishna scale (relative to the 33px base), preserving
  * the old public return shape. Per-region values are also exposed as data
  * attributes for diagnostics and tests.
  */
-export function autofitPage(page, { userScale = 1 } = {}) {
+export function autofitPage(page, { userScale = 1, minTextPx = null, maxTextPx = null } = {}) {
   const main = page.querySelector('.pg-main');
   const textEl = page.querySelector('.pg-text');
   const commEl = page.querySelector('.pg-commentary');
   if (!main || !textEl) return 1;
 
-  const BASE_TEXT = 33;
-  const BASE_COMM = 16;
-  // These are physical-pixel floors, not scale floors: a user may request a
-  // smaller starting scale, but automatic fitting never needlessly goes below
-  // these readable last-resort values.
-  const MIN_TEXT = 11;
-  const MIN_COMM = 8;
-  const COMM_MAX_RATIO = 0.8;
-  const START_SCALE = 1.06;
-  const MAX_SCALE = 1.25;
   const EPSILON = 0.015;
   const scaleInput = Number.isFinite(Number(userScale)) && Number(userScale) > 0 ? Number(userScale) : 1;
   const startText = BASE_TEXT * START_SCALE * scaleInput;
-  const maxText = BASE_TEXT * MAX_SCALE * scaleInput;
-  const minText = Math.min(startText, MIN_TEXT);
+  const userMin = Number(minTextPx);
+  const userMax = Number(maxTextPx);
+  const floorPx = Number.isFinite(userMin) && userMin > 0 ? userMin : MIN_TEXT_DEFAULT;
+  // The historic default ceiling (BASE * 1.25) applies only when the caller
+  // does not pass Layout settings; the app always passes its own.
+  const ceilingPx = Number.isFinite(userMax) && userMax > 0
+    ? userMax
+    : BASE_TEXT * 1.25 * scaleInput;
+  const maxText = Math.max(ceilingPx, floorPx);
+  const minText = Math.min(startText, Math.max(MIN_TEXT_DEFAULT, floorPx));
 
   const capCommentary = (wanted, textSize) => Math.min(wanted, textSize * COMM_MAX_RATIO);
   const startComm = capCommentary(BASE_COMM * START_SCALE * scaleInput, startText);

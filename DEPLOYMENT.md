@@ -113,6 +113,14 @@ automatically.
 
 ---
 
+## SEO defaults (no configuration needed)
+
+The repo ships an allow-all `robots.txt` plus search-engine meta tags (description,
+Open Graph, Twitter Card) and a JSON-LD `WebApplication` block in `index.html`. All of
+them are plain static files, so Cloudflare Pages, GitHub Pages, and every other host
+serve them as-is — there is nothing to enable per provider. `robots.txt` is also part
+of the offline service-worker precache list (regenerate with `node tools/build-sw.mjs`).
+
 ## Updating the site
 
 Whichever host you chose, updating is just:

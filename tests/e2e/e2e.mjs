@@ -1005,6 +1005,176 @@ try {
     assert.match(rows[0], /Bekhorot 3:2/);
   });
 
+  await scenario('layout options: flowing commentary, alignment, and margins drive the poster', async () => {
+    await page.goto(BASE, { waitUntil: 'networkidle0' });
+    await evalJS(page, () => localStorage.clear());
+    page.__errors.length = 0; // earlier scenarios intentionally trigger 404/503 noise
+    await page.reload({ waitUntil: 'networkidle0' });
+    await setStartDate(page, '2026-09-03');
+    await evalJS(page, () => { const c = document.getElementById('count'); c.value = '4'; c.dispatchEvent(new Event('change', { bubbles: true })); });
+    await clickBuild(page);
+
+    // Defaults: single-mishna pages, flowing commentary joined into one
+    // paragraph, language-native (right) alignment, 0.5in top/bottom margins.
+    assert.equal(await $eval(page, '#renderStage .poster-page', (e) => e.dataset.layout), 'single');
+    assert.equal(await $eval(page, '#renderStage .pg-content', (e) => getComputedStyle(e).top), '48px');
+    const flow = await $eval(page, '#renderStage .pg-comm-text', (e) => ({
+      count: e.querySelectorAll('p').length,
+      text: e.textContent,
+      align: getComputedStyle(e).textAlign,
+    }));
+    assert.equal(flow.count, 1, 'flowing commentary must be a single running paragraph');
+    assert.ok(flow.text.includes('·'), 'דיבור המתחיל units are separated inline');
+    assert.equal(flow.align, 'right');
+
+    // Margins: 1.25in top -> 120px inset; 0.75in bottom -> 72px inset.
+    await evalJS(page, () => {
+      const m = document.getElementById('marginTop');
+      m.value = '1.25';
+      m.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await waitFor(page, () => $eval(page, '#renderStage .pg-content', (e) => getComputedStyle(e).top === '120px'));
+    await evalJS(page, () => {
+      const m = document.getElementById('marginBottom');
+      m.value = '0.75';
+      m.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await waitFor(page, () => $eval(page, '#renderStage .pg-content', (e) => getComputedStyle(e).bottom === '72px'));
+
+    // Alignment: justify, then center, then back to the language default.
+    await evalJS(page, () => {
+      const s = document.getElementById('textAlignSel');
+      s.value = 'justify';
+      s.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await waitFor(page, () => $eval(page, '#renderStage .pg-text', (e) => getComputedStyle(e).textAlign === 'justify'));
+    await evalJS(page, () => {
+      const s = document.getElementById('textAlignSel');
+      s.value = 'center';
+      s.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await waitFor(page, () => $eval(page, '#renderStage .pg-text', (e) => getComputedStyle(e).textAlign === 'center'));
+    await evalJS(page, () => {
+      const s = document.getElementById('textAlignSel');
+      s.value = 'auto';
+      s.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await waitFor(page, () => $eval(page, '#renderStage .pg-text', (e) => getComputedStyle(e).textAlign === 'right'));
+
+    // Commentary block lines: every דיבור המתחיל returns to its own line.
+    await evalJS(page, () => {
+      const s = document.getElementById('commLayoutSel');
+      s.value = 'blocks';
+      s.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await waitFor(page, () => evalJS(page, () => document.querySelectorAll('#renderStage .pg-comm-text p').length > 1));
+    assert.equal(await $eval(page, '#renderStage .pg-comm-text p', (e) => getComputedStyle(e).display), 'block');
+
+    // Restore defaults for the scenarios that follow.
+    await evalJS(page, () => {
+      const s = document.getElementById('commLayoutSel');
+      s.value = 'flow';
+      s.dispatchEvent(new Event('change', { bubbles: true }));
+      const t = document.getElementById('marginTop');
+      t.value = '0.5';
+      t.dispatchEvent(new Event('change', { bubbles: true }));
+      const b = document.getElementById('marginBottom');
+      b.value = '0.5';
+      b.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await waitFor(page, () => $eval(page, '#renderStage .pg-content', (e) => getComputedStyle(e).top === '48px'));
+    await waitFor(page, () => evalJS(page, () => document.querySelectorAll('#renderStage .pg-comm-text p').length === 4)); // one joined paragraph per page
+    assert.equal(page.__errors.length, 0, `console errors: ${page.__errors.join(' | ')}`);
+  });
+
+  await scenario('fill layout: mishnas pack per page and rows navigate to their page', async () => {
+    await page.goto(BASE, { waitUntil: 'networkidle0' });
+    await evalJS(page, () => localStorage.clear());
+    page.__errors.length = 0; // earlier scenarios intentionally trigger 404/503 noise
+    await page.reload({ waitUntil: 'networkidle0' });
+    await setStartDate(page, '2026-09-03');
+    await evalJS(page, () => { const c = document.getElementById('count'); c.value = '4'; c.dispatchEvent(new Event('change', { bubbles: true })); });
+    await clickBuild(page);
+    assert.equal(await evalJS(page, () => document.querySelectorAll('#renderStage .poster-page').length), 4, 'single layout: one page per mishna');
+
+    await evalJS(page, () => {
+      const s = document.getElementById('layoutModeSel');
+      s.value = 'fill';
+      s.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await waitFor(page, () => evalJS(page, () => {
+      const pages = document.querySelectorAll('#renderStage .poster-page');
+      return pages.length > 0 && pages.length < 4 && [...pages].every((p) => p.dataset.layout === 'fill');
+    }), { timeout: 20000 });
+    const packed = await evalJS(page, () => {
+      const pages = [...document.querySelectorAll('#renderStage .poster-page')];
+      return {
+        pageCount: pages.length,
+        unitCount: pages.reduce((n, p) => n + p.querySelectorAll('.pg-unit').length, 0),
+        refs: pages.map((p) => [...p.querySelectorAll('.pg-unit')].map((u) => u.dataset.ref)),
+        overflows: pages.filter((p) => p.dataset.fitOverflow === '1').length,
+        floors: pages.filter((p) => p.dataset.fitAtFloor === 'true').length,
+        fonts: pages.map((p) => parseFloat(getComputedStyle(p.querySelector('.pg-unit .pg-text')).fontSize)),
+        hasFooters: pages.every((p) => !!p.querySelector('.pg-foot')),
+        firstBadge: !!pages[0].querySelector('.pg-unit:first-child .pg-badge'),
+      };
+    });
+    assert.equal(packed.unitCount, 4, 'all 4 mishnas are present across the packed pages');
+    assert.equal(packed.overflows, 0, 'no packed page may overflow at the floor font size');
+    assert.ok(packed.hasFooters, 'every packed page keeps its footer');
+    assert.equal(packed.firstBadge, true);
+    assert.ok(packed.fonts.every((f) => f >= 14 - 0.01 && f <= 64 + 0.01), `fonts outside floor/ceiling: ${packed.fonts}`);
+    const firstRefs = packed.refs[0];
+    const pageOfEntry2 = packed.refs.findIndex((refs) => refs.includes('Mishnah Bekhorot 3:4'));
+    assert.ok(firstRefs.length >= 1);
+
+    // Schedule rows navigate to the correct packed page.
+    await evalJS(page, (rowIdx) => {
+      document.querySelectorAll('#scheduleTable tbody tr')[rowIdx].click();
+    }, 2);
+    await sleep(150);
+    const shown = await evalJS(page, () => ({
+      indicator: document.getElementById('pageIndicator').textContent,
+      onPage: !!document.querySelector('#previewCanvas .pg-unit[data-entry="2"]'),
+    }));
+    assert.equal(shown.onPage, true, 'clicking day 3 should preview the page holding Bekhorot 3:4');
+    assert.equal(shown.indicator, `${pageOfEntry2 + 1} / ${packed.pageCount}`);
+
+    // Switching back restores one page per mishna.
+    await evalJS(page, () => {
+      const s = document.getElementById('layoutModeSel');
+      s.value = 'single';
+      s.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await waitFor(page, () => evalJS(page, () => document.querySelectorAll('#renderStage .poster-page').length === 4));
+    assert.equal(await $eval(page, '#renderStage .poster-page', (e) => e.dataset.layout), 'single');
+    assert.equal(page.__errors.length, 0, `console errors: ${page.__errors.join(' | ')}`);
+  });
+
+  await scenario('SEO: robots.txt, social meta tags, and structured data are served', async () => {
+    await page.goto(BASE, { waitUntil: 'networkidle0' });
+    const robots = await evalJS(page, async () => {
+      const res = await fetch('robots.txt');
+      return res.ok ? await res.text() : '';
+    });
+    assert.match(robots, /User-agent: \*/);
+    assert.match(robots, /Allow: \//);
+    const metas = await evalJS(page, () => ({
+      robots: document.querySelector('meta[name="robots"]')?.content || '',
+      ogType: document.querySelector('meta[property="og:type"]')?.content || '',
+      ogTitle: document.querySelector('meta[property="og:title"]')?.content || '',
+      twitterCard: document.querySelector('meta[name="twitter:card"]')?.content || '',
+      ldJson: [...document.querySelectorAll('script[type="application/ld+json"]')].map((s) => s.textContent).join(''),
+    }));
+    assert.equal(metas.robots, 'index, follow');
+    assert.equal(metas.ogType, 'website');
+    assert.ok(metas.ogTitle.length > 0);
+    assert.equal(metas.twitterCard, 'summary');
+    assert.match(metas.ldJson, /WebApplication/);
+    const swCachesRobots = await evalJS(page, async () => (await (await fetch('sw.js')).text()).includes('robots.txt'));
+    assert.equal(swCachesRobots, true, 'the offline cache must include robots.txt');
+  });
+
   // Scenario 20: the raster sent to the PDF must match the browser's own
   // rendering of the same DOM. Screenshot the first stage poster natively,
   // rasterize it with html2canvas (what the PDF pipeline uses), and compare

@@ -4,10 +4,47 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Mishna Poster Generator · מחולל כרזות משנה</title>
-  <meta name="description" content="Generate printable Letter, Legal, Tabloid, or custom-size daily Mishnah learning posters from open-source Sefaria texts. One mishna per page, Hebrew with nikud, Bartenura commentary, custom templates." />
+  <meta name="description" content="Free, offline Mishnah poster generator: print daily Mishnah learning posters in Hebrew with nikud and Bartenura commentary. One mishna per page or several per page, Letter / Legal / Tabloid / custom sizes, fonts, templates, and PDF export." />
+  <meta name="robots" content="index, follow" />
+  <meta name="application-name" content="Mishna Poster Generator" />
+  <meta name="author" content="Mishna Poster Generator" />
+  <!-- Open Graph / Twitter social preview -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Mishna Poster Generator" />
+  <meta property="og:title" content="Mishna Poster Generator · מחולל כרזות משנה" />
+  <meta property="og:description" content="Create printable daily-Mishnah learning posters from Sefaria texts — Hebrew with nikud, Bartenura commentary, custom sizes and templates, PDF export. Works fully offline." />
+  <meta property="og:image" content="assets/icons/icon-512.png" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Mishna Poster Generator · מחולל כרזות משנה" />
+  <meta name="twitter:description" content="Create printable daily-Mishnah learning posters from Sefaria texts — Hebrew with nikud, Bartenura commentary, custom sizes and templates, PDF export. Works fully offline." />
+  <meta name="twitter:image" content="assets/icons/icon-512.png" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231e3a5f'/%3E%3Ctext x='32' y='45' font-size='36' text-anchor='middle' fill='%23fca311' font-family='serif'%3E%D7%9E%3C/text%3E%3C/svg%3E" />
   <link rel="manifest" href="manifest.webmanifest" />
   <meta name="theme-color" content="#1e3a5f" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Mishna Poster Generator",
+    "alternateName": "מחולל כרזות משנה",
+    "description": "Create printable daily-Mishnah study posters from open-source Sefaria texts. One mishna per page or several per page, Hebrew with nikud, Bartenura and other commentaries, custom page sizes, margins, fonts and templates, PDF/PNG/print export. Runs fully in the browser and works offline.",
+    "applicationCategory": "EducationalApplication",
+    "operatingSystem": "Any (web)",
+    "browserRequirements": "Requires JavaScript",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "inLanguage": ["en", "he"],
+    "isAccessibleForFree": true,
+    "thumbnailUrl": "assets/icons/icon-512.png",
+    "featureList": [
+      "Daily Mishnah schedule builder",
+      "Hebrew with nikud or English text",
+      "Bartenura, Rambam and Tosafot Yom Tov commentaries",
+      "One mishna per page or several packed per page",
+      "Letter, Legal, Tabloid and custom page sizes with margins",
+      "PDF and PNG export, browser print"
+    ]
+  }
+  </script>
   <link rel="stylesheet" href="assets/css/fonts.css" />
   <link rel="stylesheet" href="assets/css/main.css" />
   <link rel="stylesheet" href="assets/css/poster.css" />
@@ -26,7 +63,7 @@
         <div class="brand-mark" aria-hidden="true">מ</div>
         <div class="brand-text">
           <h1 data-i18n="appTitle">Mishna Poster Generator</h1>
-          <p data-i18n="appSubtitle">Daily Mishnah learning posters — one mishna per page</p>
+          <p data-i18n="appSubtitle">Daily Mishnah learning posters — Hebrew with nikud and Bartenura</p>
         </div>
       </div>
       <div class="topbar-actions">
@@ -248,6 +285,71 @@
           <p class="hint" data-i18n="customPageSizeHint">Choose dimensions from 5 to 17 inches. Width and height may be swapped for landscape.</p>
         </div>
 
+        <!-- layout: arrangement, typography limits, margins, alignment -->
+        <h3 class="sub-title" data-i18n="layoutTitle">Layout</h3>
+
+        <div class="grid-2">
+          <label class="field">
+            <span class="field-label" data-i18n="layoutMode">Mishnas per page</span>
+            <select id="layoutModeSel">
+              <option value="single" data-i18n="layoutModeSingle">One mishna per page (stretch up to the maximum font size)</option>
+              <option value="fill" data-i18n="layoutModeFill">Pack as many mishnas per page as fit</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-label" data-i18n="textAlign">Text alignment</span>
+            <select id="textAlignSel">
+              <option value="auto" data-i18n="textAlignAuto">Right / left (match the text language)</option>
+              <option value="justify" data-i18n="textAlignJustify">Justify (flush both edges)</option>
+              <option value="center" data-i18n="textAlignCenter">Centered</option>
+            </select>
+          </label>
+        </div>
+        <p class="hint" data-i18n="layoutModeHint">“Pack” starts each page with the smallest allowed mishna font and only breaks to a new page when the next mishna no longer fits; “One per page” enlarges the text to fill the page up to the maximum size.</p>
+
+        <div class="grid-2">
+          <label class="field">
+            <span class="field-label" data-i18n="minMishnaFont">Floor font size (px)</span>
+            <input type="number" id="minMishnaFontPx" min="11" max="96" step="1" inputmode="numeric" value="14" />
+          </label>
+          <label class="field">
+            <span class="field-label" data-i18n="maxMishnaFont">Ceiling font size (px)</span>
+            <input type="number" id="maxMishnaFontPx" min="24" max="200" step="1" inputmode="numeric" value="64" />
+          </label>
+        </div>
+        <p class="hint" data-i18n="fontLimitsHint">Bounds for the mishna text: packed pages shrink toward the floor; single pages grow toward the ceiling.</p>
+
+        <label class="field">
+          <span class="field-label" data-i18n="commLayout">Commentary layout</span>
+          <select id="commLayoutSel">
+            <option value="flow" data-i18n="commLayoutFlow">Flowing (each דיבור המתחיל continues inline — saves space)</option>
+            <option value="blocks" data-i18n="commLayoutBlocks">Block lines (each דיבור המתחיל starts its own line)</option>
+          </select>
+        </label>
+
+        <div class="field">
+          <span class="field-label"><span data-i18n="margins">Text margins (distance from each page edge)</span></span>
+          <div class="margin-grid">
+            <label class="margin-cell">
+              <span data-i18n="marginTop">Top</span>
+              <span class="margin-input-row"><input type="number" id="marginTop" min="0" max="2" step="0.05" inputmode="decimal" value="0.5" aria-label="Top margin in inches" /><span class="margin-unit">in</span></span>
+            </label>
+            <label class="margin-cell">
+              <span data-i18n="marginRight">Right</span>
+              <span class="margin-input-row"><input type="number" id="marginRight" min="0" max="2" step="0.05" inputmode="decimal" value="0.6" aria-label="Right margin in inches" /><span class="margin-unit">in</span></span>
+            </label>
+            <label class="margin-cell">
+              <span data-i18n="marginBottom">Bottom</span>
+              <span class="margin-input-row"><input type="number" id="marginBottom" min="0" max="2" step="0.05" inputmode="decimal" value="0.5" aria-label="Bottom margin in inches" /><span class="margin-unit">in</span></span>
+            </label>
+            <label class="margin-cell">
+              <span data-i18n="marginLeft">Left</span>
+              <span class="margin-input-row"><input type="number" id="marginLeft" min="0" max="2" step="0.05" inputmode="decimal" value="0.6" aria-label="Left margin in inches" /><span class="margin-unit">in</span></span>
+            </label>
+          </div>
+          <p class="hint" data-i18n="marginsHint">Inches of blank space between the page edge and the text. Use larger margins to keep text clear of pre-printed borders or artwork drawn on the template.</p>
+        </div>
+
         <label class="field">
           <span class="field-label" data-i18n="institution">Institution / letterhead name</span>
           <input type="text" id="institution" data-i18n-ph="institutionPh" placeholder="e.g. Congregation Bnei Torah" maxlength="80" />
@@ -379,7 +481,7 @@
           <div class="preview-empty" id="previewEmpty">
             <div class="preview-empty-inner">
               <div class="pe-mark">מ</div>
-              <p data-i18n="appSubtitle">Daily Mishnah learning posters — one mishna per page</p>
+              <p data-i18n="appSubtitle">Daily Mishnah learning posters — Hebrew with nikud and Bartenura</p>
             </div>
           </div>
         </div>

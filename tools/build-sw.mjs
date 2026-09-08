@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const ROOTS = ['assets/css', 'assets/js', 'assets/vendor', 'assets/fonts', 'assets/icons', 'assets/content'];
-const TOP = ['index.html', 'manifest.webmanifest'];
+const TOP = ['index.html', 'manifest.webmanifest', 'robots.txt'];
 
 function walk(dir) {
   const out = [];

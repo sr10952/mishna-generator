@@ -18,7 +18,7 @@
 import { getPageSize, FONTS } from './poster.js';
 
 /** Bumped whenever the settings shape changes in a way import must migrate. */
-export const SETTINGS_SCHEMA_VERSION = 3;
+export const SETTINGS_SCHEMA_VERSION = 4;
 
 /** Stable identifier written into backup files so imports can be validated. */
 export const APP_ID = 'mishna-poster-generator';
@@ -39,6 +39,21 @@ export const MAX_FONT_PX_MIN = 24;
 export const MAX_FONT_PX_MAX = 200;
 export const DEFAULT_MIN_FONT_PX = 14;
 export const DEFAULT_MAX_FONT_PX = 64;
+
+/** Direct, fixed font sizes for poster chrome (CSS px, not auto-fit bounds). */
+export const STATIC_TEXT_FONT_PX_MIN = 4;
+export const STATIC_TEXT_FONT_PX_MAX = 200;
+export const DEFAULT_STATIC_TEXT_SIZES = Object.freeze({
+  institution: 34,
+  dedication: 19,
+  badge: 16.5,
+  info: 18.5,
+  reference: 30,
+  commentaryLabel: 15.2,
+  footerNote: 12.5,
+  attribution: 12.5,
+  projectDedication: 13,
+});
 
 /** Page margins (inches) - text inset from each of the four page edges. */
 export const MARGIN_MIN_IN = 0;
@@ -89,6 +104,8 @@ export function makeDefaults() {
       institution: '',
       dedication: '',
       footerNote: '',
+      // Fixed poster-pixel sizes for non-body text and poster labels.
+      staticTextSizes: { ...DEFAULT_STATIC_TEXT_SIZES },
       logoDataUrl: null,
       bgDataUrl: null,
       bgOverlay: 0.85,
@@ -219,6 +236,16 @@ export function normalizeSettings(raw) {
   dd.institution = asString(d.institution, '');
   dd.dedication = asString(d.dedication, '');
   dd.footerNote = asString(d.footerNote, '');
+  // These are actual fixed pixel values. Keep them independent of the mishna's
+  // floor/ceiling auto-fit settings and discard unknown size keys.
+  const rawStaticSizes = d.staticTextSizes && typeof d.staticTextSizes === 'object' && !Array.isArray(d.staticTextSizes)
+    ? d.staticTextSizes
+    : {};
+  dd.staticTextSizes = {};
+  for (const [key, fallback] of Object.entries(DEFAULT_STATIC_TEXT_SIZES)) {
+    const size = clampNum(rawStaticSizes[key], STATIC_TEXT_FONT_PX_MIN, STATIC_TEXT_FONT_PX_MAX, fallback);
+    dd.staticTextSizes[key] = Math.round(size * 10) / 10;
+  }
   dd.logoDataUrl = safeImageDataUrl(d.logoDataUrl);
   dd.bgDataUrl = safeImageDataUrl(d.bgDataUrl);
   dd.bgOverlay = clampNum(d.bgOverlay, 0.4, 1, DEFAULTS.design.bgOverlay);

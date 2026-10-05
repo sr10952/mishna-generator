@@ -399,6 +399,47 @@
             <input type="text" id="footerNote" data-i18n-ph="footerNotePh" placeholder="e.g. Questions? info@shul.org" maxlength="120" />
           </label>
 
+          <h3 class="sub-title" data-i18n="staticTextSizesTitle">Fixed poster text sizes</h3>
+          <p class="hint static-size-hint" id="staticTextSizesHint" data-i18n="staticTextSizesHint">Set exact font sizes in poster pixels. Each size stays the same across pages and layout modes; these texts do not auto-shrink. The preview updates automatically.</p>
+          <div class="grid-2 static-size-grid">
+            <label class="field static-size-field">
+              <span class="field-label" data-i18n="staticSizeInstitution">Institution / letterhead</span>
+              <span class="static-size-control"><input type="number" id="staticSizeInstitution" min="4" max="200" step="0.1" inputmode="decimal" aria-describedby="staticTextSizesHint" /><span class="static-size-unit" data-i18n="pixelUnit">px</span></span>
+            </label>
+            <label class="field static-size-field">
+              <span class="field-label" data-i18n="staticSizeDedication">Dedication line</span>
+              <span class="static-size-control"><input type="number" id="staticSizeDedication" min="4" max="200" step="0.1" inputmode="decimal" aria-describedby="staticTextSizesHint" /><span class="static-size-unit" data-i18n="pixelUnit">px</span></span>
+            </label>
+            <label class="field static-size-field">
+              <span class="field-label" data-i18n="staticSizeBadge">Daily Mishna badge</span>
+              <span class="static-size-control"><input type="number" id="staticSizeBadge" min="4" max="200" step="0.1" inputmode="decimal" aria-describedby="staticTextSizesHint" /><span class="static-size-unit" data-i18n="pixelUnit">px</span></span>
+            </label>
+            <label class="field static-size-field">
+              <span class="field-label" data-i18n="staticSizeInfo">Date / holiday / parasha line</span>
+              <span class="static-size-control"><input type="number" id="staticSizeInfo" min="4" max="200" step="0.1" inputmode="decimal" aria-describedby="staticTextSizesHint" /><span class="static-size-unit" data-i18n="pixelUnit">px</span></span>
+            </label>
+            <label class="field static-size-field">
+              <span class="field-label" data-i18n="staticSizeReference">Mishna reference</span>
+              <span class="static-size-control"><input type="number" id="staticSizeReference" min="4" max="200" step="0.1" inputmode="decimal" aria-describedby="staticTextSizesHint" /><span class="static-size-unit" data-i18n="pixelUnit">px</span></span>
+            </label>
+            <label class="field static-size-field">
+              <span class="field-label" data-i18n="staticSizeCommentaryLabel">Commentary name label</span>
+              <span class="static-size-control"><input type="number" id="staticSizeCommentaryLabel" min="4" max="200" step="0.1" inputmode="decimal" aria-describedby="staticTextSizesHint" /><span class="static-size-unit" data-i18n="pixelUnit">px</span></span>
+            </label>
+            <label class="field static-size-field">
+              <span class="field-label" data-i18n="staticSizeFooterNote">Custom footer line</span>
+              <span class="static-size-control"><input type="number" id="staticSizeFooterNote" min="4" max="200" step="0.1" inputmode="decimal" aria-describedby="staticTextSizesHint" /><span class="static-size-unit" data-i18n="pixelUnit">px</span></span>
+            </label>
+            <label class="field static-size-field">
+              <span class="field-label" data-i18n="staticSizeAttribution">Text-source attribution</span>
+              <span class="static-size-control"><input type="number" id="staticSizeAttribution" min="4" max="200" step="0.1" inputmode="decimal" aria-describedby="staticTextSizesHint" /><span class="static-size-unit" data-i18n="pixelUnit">px</span></span>
+            </label>
+            <label class="field static-size-field">
+              <span class="field-label" data-i18n="staticSizeProjectDedication">Project dedication line</span>
+              <span class="static-size-control"><input type="number" id="staticSizeProjectDedication" min="4" max="200" step="0.1" inputmode="decimal" aria-describedby="staticTextSizesHint" /><span class="static-size-unit" data-i18n="pixelUnit">px</span></span>
+            </label>
+          </div>
+
           <div class="grid-2">
             <div class="field">
               <span class="field-label" data-i18n="letterheadImg">Letterhead / logo image</span>

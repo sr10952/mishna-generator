@@ -15,7 +15,12 @@ import {
   getYomTovInfo, formatYomTovInfo,
 } from './hebrew.js';
 import { STRINGS } from './i18n.js';
-import { PROJECT_DEDICATION_HE } from './settings.js';
+import {
+  PROJECT_DEDICATION_HE,
+  DEFAULT_STATIC_TEXT_SIZES,
+  STATIC_TEXT_FONT_PX_MIN,
+  STATIC_TEXT_FONT_PX_MAX,
+} from './settings.js';
 
 /**
  * Physical poster formats. The raster dimensions are based on CSS's 96 px/in
@@ -273,6 +278,31 @@ function setPageSizeData(page, pageSize) {
   page.dataset.pageHeightIn = String(pageSize.heightIn);
 }
 
+const STATIC_TEXT_SIZE_VARIABLES = {
+  institution: '--pg-inst-font-size',
+  dedication: '--pg-dedication-font-size',
+  badge: '--pg-badge-font-size',
+  info: '--pg-info-font-size',
+  reference: '--pg-ref-font-size',
+  commentaryLabel: '--pg-comm-label-font-size',
+  footerNote: '--pg-footer-note-font-size',
+  attribution: '--pg-attribution-font-size',
+  projectDedication: '--pg-project-dedication-font-size',
+};
+
+/** Apply exact, shared poster-pixel sizes to all non-body text. */
+function setStaticTextSizes(page, design) {
+  const source = design.staticTextSizes && typeof design.staticTextSizes === 'object'
+    ? design.staticTextSizes
+    : {};
+  for (const [key, variable] of Object.entries(STATIC_TEXT_SIZE_VARIABLES)) {
+    const raw = Number(source[key]);
+    const value = Number.isFinite(raw) ? raw : DEFAULT_STATIC_TEXT_SIZES[key];
+    const size = Math.round(Math.max(STATIC_TEXT_FONT_PX_MIN, Math.min(STATIC_TEXT_FONT_PX_MAX, value)) * 10) / 10;
+    page.style.setProperty(variable, `${size}px`);
+  }
+}
+
 /**
  * Create the reusable poster page shell (background layers, decorative
  * frames, typography variables, margins) plus its content column. The caller
@@ -293,6 +323,7 @@ function createPageShell({ settings, pageSize, template, he, layoutMode }) {
   page.style.setProperty('--pg-comm-font', (FONTS[design.commentaryFont] || FONTS[design.font] || FONTS.frank).css);
   page.style.setProperty('--pg-page-width', `${pageSize.width}px`);
   page.style.setProperty('--pg-page-height', `${pageSize.height}px`);
+  setStaticTextSizes(page, design);
 
   // Text margins: the distance the content column keeps from each page edge.
   // These complement the page size so pre-printed templates / drawn-over
@@ -442,7 +473,7 @@ function buildPosterMain({ design, textData, commentaries, settings, he }) {
 function buildPosterFoot({ design, textData, he }) {
   const foot = el('footer', 'pg-foot');
   const footLeft = el('div', 'pg-foot-note');
-  if (design.footerNote) footLeft.appendChild(el('span', null, esc(design.footerNote)));
+  if (design.footerNote) footLeft.appendChild(el('span', 'pg-footer-note', esc(design.footerNote)));
   const sourceBits = [];
   if (textData) {
     const vt = he && textData.versionTitleInHebrew ? textData.versionTitleInHebrew : textData.versionTitle;

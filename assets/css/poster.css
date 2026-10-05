@@ -96,7 +96,7 @@
   object-fit: contain;
 }
 .poster-page .pg-inst {
-  font-size: 34px;
+  font-size: var(--pg-inst-font-size, 34px);
   font-weight: 900;
   line-height: 1.25;
   color: var(--pg-head-band-ink);
@@ -106,7 +106,7 @@
 }
 .poster-page .pg-dedication {
   margin-top: 6px;
-  font-size: 19px;
+  font-size: var(--pg-dedication-font-size, 19px);
   color: var(--pg-muted);
   font-weight: 500;
 }
@@ -127,7 +127,7 @@
 .poster-page .pg-badge {
   background: var(--pg-accent);
   color: #fff;
-  font-size: 16.5px;
+  font-size: var(--pg-badge-font-size, 16.5px);
   font-weight: 700;
   max-width: 100%;
   overflow-wrap: anywhere;
@@ -135,7 +135,7 @@
   text-align: center;
 }
 .poster-page .pg-info-bit {
-  font-size: 18.5px;
+  font-size: var(--pg-info-font-size, 18.5px);
   font-weight: 600;
   color: var(--pg-muted);
   max-width: 100%;
@@ -154,7 +154,7 @@
 .poster-page .pg-ref {
   flex: none;
   text-align: center;
-  font-size: 30px;
+  font-size: var(--pg-ref-font-size, 30px);
   font-weight: 900;
   color: var(--pg-title-color);
   margin: 12px 0 4px;
@@ -199,7 +199,7 @@
 }
 .poster-page .pg-comm-block + .pg-comm-block { margin-top: 0.75em; }
 .poster-page .pg-comm-label {
-  font-size: 0.95em;
+  font-size: var(--pg-comm-label-font-size, 15.2px);
   line-height: 1.2;
   font-weight: 700;
   color: #fff;
@@ -246,14 +246,31 @@
   font-size: 12.5px;
   color: var(--pg-muted);
 }
-.poster-page .pg-foot-note { display: flex; gap: 12px; flex-wrap: wrap; }
+.poster-page .pg-foot-note {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.poster-page .pg-footer-note {
+  font-size: var(--pg-footer-note-font-size, 12.5px);
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.poster-page .pg-attr {
+  font-size: var(--pg-attribution-font-size, 12.5px);
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
 /* Project memorial dedication: full-width line under the footer, centered,
    pure Hebrew so native-Hebrew posters stay Latin-free. */
 .poster-page .pg-project-dedication {
   flex-basis: 100%;
   width: 100%;
   text-align: center;
-  font-size: 13px;
+  font-size: var(--pg-project-dedication-font-size, 13px);
+  overflow-wrap: anywhere;
   color: var(--pg-accent, var(--pg-muted));
   opacity: 0.92;
   direction: rtl;
@@ -286,17 +303,17 @@
   padding-top: 9px;
   border-top: 1.5px solid var(--pg-foot-rule, var(--pg-frame));
 }
-/* Compact chrome: the fixed-size headers must not dwarf a packed body. */
+/* Fill mode tightens spacing, but each static text keeps its exact user-set
+   font size (the same values used by single-mishna pages). */
 .poster-page.layout-fill .pg-head + .pg-units { margin-top: 10px; }
 .poster-page.layout-fill .pg-info { margin: 2px auto 0; }
-.poster-page.layout-fill .pg-badge { font-size: 13px; padding: 2px 11px; }
-.poster-page.layout-fill .pg-info-bit { font-size: 14px; font-weight: 600; }
+.poster-page.layout-fill .pg-badge { padding: 2px 11px; }
+.poster-page.layout-fill .pg-info-bit { font-weight: 600; }
 .poster-page.layout-fill .pg-info-bit:not(:last-child)::after { margin-inline-start: 9px; }
-.poster-page.layout-fill .pg-ref { font-size: 21px; margin: 5px 0 3px; line-height: 1.25; }
+.poster-page.layout-fill .pg-ref { margin: 5px 0 3px; line-height: 1.25; }
 .poster-page.layout-fill .pg-ref::after { width: 90px; height: 2px; margin: 5px auto 0; }
 .poster-page.layout-fill .pg-main { padding-top: 5px; }
 .poster-page.layout-fill .pg-commentary { margin-top: 0.6em; }
-.poster-page.layout-fill .pg-commentary .pg-comm-label { font-size: 0.85em; }
 
 /* ==========================================================================
    Built-in templates

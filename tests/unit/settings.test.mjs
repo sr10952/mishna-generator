@@ -4,6 +4,7 @@ import {
   DEFAULTS, makeDefaults, normalizeSettings, stripImages, safeImageDataUrl,
   SETTINGS_SCHEMA_VERSION, PROJECT_DEDICATION_HE,
   DEFAULT_MIN_FONT_PX, DEFAULT_MAX_FONT_PX,
+  DEFAULT_STATIC_TEXT_SIZES, STATIC_TEXT_FONT_PX_MIN, STATIC_TEXT_FONT_PX_MAX,
 } from '../../assets/js/settings.js';
 
 test('DEFAULTS is a complete, self-consistent schema', () => {
@@ -24,6 +25,7 @@ test('DEFAULTS is a complete, self-consistent schema', () => {
   assert.equal(DEFAULTS.design.marginBottom, 0.5);
   assert.equal(DEFAULTS.design.marginRight, 0.6);
   assert.equal(DEFAULTS.design.marginLeft, 0.6);
+  assert.deepEqual(DEFAULTS.design.staticTextSizes, DEFAULT_STATIC_TEXT_SIZES);
 });
 
 test('legacy settings without layout fields are repaired to the defaults', () => {
@@ -85,12 +87,49 @@ test('normalizeSettings bounds the page margins to 0..2 inches', () => {
   assert.equal(s.design.marginRight, DEFAULTS.design.marginRight);
 });
 
+test('static text sizes are exact, independent poster-pixel values with safe import bounds', () => {
+  const sizes = normalizeSettings({
+    design: {
+      minMishnaFontPx: 11,
+      maxMishnaFontPx: 200,
+      staticTextSizes: {
+        institution: 98.5,
+        dedication: 3,
+        badge: 999,
+        info: '12.7',
+        reference: 'invalid',
+        commentaryLabel: 4,
+        footerNote: -2,
+        attribution: 39.99,
+        projectDedication: 200,
+        obsoleteSize: 77,
+      },
+    },
+  }).design.staticTextSizes;
+  assert.deepEqual(sizes, {
+    institution: 98.5,
+    dedication: STATIC_TEXT_FONT_PX_MIN,
+    badge: STATIC_TEXT_FONT_PX_MAX,
+    info: 12.7,
+    reference: DEFAULT_STATIC_TEXT_SIZES.reference,
+    commentaryLabel: STATIC_TEXT_FONT_PX_MIN,
+    footerNote: STATIC_TEXT_FONT_PX_MIN,
+    attribution: 40,
+    projectDedication: STATIC_TEXT_FONT_PX_MAX,
+  });
+  // Old settings and profiles get defaults, without inheriting the mishna's
+  // auto-fit floor/ceiling or any old fill-layout relative sizes.
+  assert.deepEqual(normalizeSettings({ design: { maxMishnaFontPx: 120 } }).design.staticTextSizes, DEFAULT_STATIC_TEXT_SIZES);
+});
+
 test('makeDefaults returns fresh clones (no shared mutation)', () => {
   const a = makeDefaults();
   a.design.accent = '#000000';
+  a.design.staticTextSizes.institution = 99;
   a.weekdays.push(99);
   const b = makeDefaults();
   assert.notEqual(b.design.accent, '#000000');
+  assert.equal(b.design.staticTextSizes.institution, DEFAULT_STATIC_TEXT_SIZES.institution);
   assert.deepEqual(b.weekdays, [0, 1, 2, 3, 4, 5, 6]);
 });
 

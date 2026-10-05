@@ -55,6 +55,7 @@ and served locally.
   - **Pack as many mishnas per page as fit** — pages are filled greedily down to a floor font size (default 14 px) before breaking to the next page; several learning days share a page and the schedule table still jumps to the right page
   - **Margins** — independent top / right / bottom / left insets (inches) that move the text in from each page edge, so text never collides with pre-printed stationery, template borders, or drawn-over artwork
   - **Text alignment** — language-native right/left, justified, or centered (applies to mishna and commentary)
+  - **Exact static-text sizes** — set independent, fixed poster-pixel sizes for the institution name, dedication, Daily Mishna badge, date/info line, mishna reference, commentary labels, custom footer, text attribution, and project dedication. The chosen sizes stay identical across pages and both layout modes, are separate from the mishna floor/ceiling, and update the live preview automatically
   - **Commentary layout** — flowing paragraphs (default, space-saving) or classic one-line-per-דיבור-המתחיל blocks
 
 **Saved profiles & backup**
@@ -143,8 +144,8 @@ then open <http://localhost:8930>. (ES modules require http:// — `file://` won
 
 ```bash
 npm install        # dev deps only (puppeteer-core + @sparticuz/chromium for headless tests)
-npm test           # 76 unit tests
-npm run test:e2e   # 36 end-to-end scenarios in real headless Chromium (offline, fixture-driven)
+npm test           # 77 unit tests
+npm run test:e2e   # 37 end-to-end scenarios in real headless Chromium (offline, fixture-driven)
 npm run test:all   # everything
 ```
 
@@ -156,7 +157,8 @@ custom 13″ × 10″ landscape regression coverage); long commentary auto-fit s
 while remaining smaller than the mishna; the html2canvas raster used for
 PDFs is **pixel-compared against the browser's own rendering** (≥ 95 % match) so
 Hebrew/RTL output can't silently break; native-Hebrew mode contains *no Latin
-characters*; the Daily Mishnah badge can be customized or hidden; Yiddish and custom
+characters*; the Daily Mishnah badge can be customized or hidden; all static poster text
+sizes apply at exact pixel values in preview and in both single/packed layouts; Yiddish and custom
 weekday labels plus optional date-aware Yom Tov / Chol HaMoed labels; individual posters
 omit page N of M footers; nikud toggling; template switching; persistence; responsive
 audits at 375/768/1280 px; and graceful degradation when Sefaria returns a 404. Newer
@@ -173,8 +175,8 @@ and the schedule table jumping to the packed page that holds a clicked day. A fu
 scenario checks `robots.txt`, the Open Graph / Twitter tags, and the JSON-LD block.
 
 The unit suite adds focused coverage for the settings schema and migration/normalization
-(`settings.test.mjs`), including the layout enums, font floor/ceiling limits, and page
-margin bounds; profile serialization, limits, and backup validation
+(`settings.test.mjs`), including the layout enums, mishna font floor/ceiling limits,
+exact fixed text-size defaults/bounds, and page-margin bounds; profile serialization, limits, and backup validation
 (`profiles.test.mjs`); and the bundled content store (`content.test.mjs`).
 
 ## Project structure
@@ -204,10 +206,10 @@ assets/
   fonts/                self-hosted woff2 (Frank Ruhl Libre, David Libre, Heebo, Miriam Libre)
   vendor/               html2canvas 1.4.1, jsPDF 3 (self-hosted, MIT)
 tests/
-  unit/                 76 unit tests (node --test): hebrew, i18n, poster, schedule,
+  unit/                 77 unit tests (node --test): hebrew, i18n, poster, schedule,
                         settings, profiles, content
   e2e/                  e2e.mjs + browser.mjs (chromium bootstrap, static server,
-                        Sefaria fixture interceptor) — 36 scenarios, runs fully offline
+                        Sefaria fixture interceptor) — 37 scenarios, runs fully offline
   fixtures/             recorded Sefaria API responses
 tools/build-fixtures.mjs rebuilds the fixtures from the live API
 tools/fetch-corpus-github.mjs  bulk-builds the offline corpus (whole Mishnah) from

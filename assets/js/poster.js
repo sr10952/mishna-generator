@@ -15,7 +15,12 @@ import {
   getYomTovInfo, formatYomTovInfo,
 } from './hebrew.js';
 import { STRINGS } from './i18n.js';
-import { PROJECT_DEDICATION_HE } from './settings.js';
+import {
+  PROJECT_DEDICATION_HE,
+  DEFAULT_STATIC_TEXT_SIZES,
+  STATIC_TEXT_FONT_PX_MIN,
+  STATIC_TEXT_FONT_PX_MAX,
+} from './settings.js';
 
 /**
  * Physical poster formats. The raster dimensions are based on CSS's 96 px/in
@@ -273,6 +278,31 @@ function setPageSizeData(page, pageSize) {
   page.dataset.pageHeightIn = String(pageSize.heightIn);
 }
 
+const STATIC_TEXT_SIZE_VARIABLES = {
+  institution: '--pg-inst-font-size',
+  dedication: '--pg-dedication-font-size',
+  badge: '--pg-badge-font-size',
+  info: '--pg-info-font-size',
+  reference: '--pg-ref-font-size',
+  commentaryLabel: '--pg-comm-label-font-size',
+  footerNote: '--pg-footer-note-font-size',
+  attribution: '--pg-attribution-font-size',
+  projectDedication: '--pg-project-dedication-font-size',
+};
+
+/** Apply exact, shared poster-pixel sizes to all non-body text. */
+function setStaticTextSizes(page, design) {
+  const source = design.staticTextSizes && typeof design.staticTextSizes === 'object'
+    ? design.staticTextSizes
+    : {};
+  for (const [key, variable] of Object.entries(STATIC_TEXT_SIZE_VARIABLES)) {
+    const raw = Number(source[key]);
+    const value = Number.isFinite(raw) ? raw : DEFAULT_STATIC_TEXT_SIZES[key];
+    const size = Math.round(Math.max(STATIC_TEXT_FONT_PX_MIN, Math.min(STATIC_TEXT_FONT_PX_MAX, value)) * 10) / 10;
+    page.style.setProperty(variable, `${size}px`);
+  }
+}
+
 /**
  * Create the reusable poster page shell (background layers, decorative
  * frames, typography variables, margins) plus its content column. The caller
@@ -293,6 +323,7 @@ function createPageShell({ settings, pageSize, template, he, layoutMode }) {
   page.style.setProperty('--pg-comm-font', (FONTS[design.commentaryFont] || FONTS[design.font] || FONTS.frank).css);
   page.style.setProperty('--pg-page-width', `${pageSize.width}px`);
   page.style.setProperty('--pg-page-height', `${pageSize.height}px`);
+  setStaticTextSizes(page, design);
 
   // Text margins: the distance the content column keeps from each page edge.
   // These complement the page size so pre-printed templates / drawn-over
@@ -346,13 +377,36 @@ function buildPosterHead(design) {
 /** Poster info bar: badge (optional) + weekday/date + holiday + parsha + day count. */
 function buildPosterInfo({ date, design, he, calendar, index, total, settings, showBadge }) {
   const infoBits = [];
-  if (design.showDate !== false) {
-    const datePieces = [
-      formatPosterWeekday(date, design, he),
-      formatHebrewDate(date, he ? 'he' : 'en'),
-    ].filter(Boolean);
-    if (datePieces.length) infoBits.push(datePieces.join(' · '));
+  const showDate = design.showDate !== false;
+  const yiddishWeekday = design.weekdayDisplay === 'yi' || design.weekdayDisplay === 'yiddish';
+  const weekday = showDate ? formatPosterWeekday(date, design, he) : '';
+  const formattedDate = showDate ? formatHebrewDate(date, he ? 'he' : 'en') : '';
+
+  let parshaName = '';
+  if (design.showParsha !== false && calendar && calendar.parsha) {
+    const raw = he ? calendar.parsha.he : calendar.parsha.en;
+    // A holiday reading may be returned in the weekly-parasha slot (for
+    // example "סוכות חג ראשון"). Suppress it rather than duplicating or
+    // misleading the date information shown immediately beside it.
+    if (raw && !isHolidayParsha(raw)) {
+      const prefix = he ? 'פרשת ' : 'Parshat ';
+      parshaName = `${isParshaName(raw) ? prefix : ''}${raw}`;
+    }
   }
+
+  if (showDate) {
+    if (yiddishWeekday && parshaName) {
+      // Keep the Yiddish weekday, parasha, and date in one bidi run.
+      // Separate flex items can reverse around the RTL info bar and visually
+      // strand the parasha after the date instead of between weekday and date.
+      const weekdayAndParsha = [weekday, parshaName].filter(Boolean).join(' ');
+      infoBits.push([weekdayAndParsha, formattedDate].filter(Boolean).join(' · '));
+    } else {
+      const datePieces = [weekday, formattedDate].filter(Boolean);
+      if (datePieces.length) infoBits.push(datePieces.join(' · '));
+    }
+  }
+
   if (design.showYomTovName === true) {
     // Main.js stores the per-entry value so all generated output is stable,
     // even if the weekly calendar request failed. Keep this fallback for
@@ -365,16 +419,8 @@ function buildPosterInfo({ date, design, he, calendar, index, total, settings, s
     });
     if (yomTovName) infoBits.push(yomTovName);
   }
-  if (design.showParsha !== false && calendar && calendar.parsha) {
-    const raw = he ? calendar.parsha.he : calendar.parsha.en;
-    // A holiday reading may be returned in the weekly-parasha slot (for
-    // example "סוכות חג ראשון"). Suppress it rather than duplicating or
-    // misleading the date information shown immediately beside it.
-    if (raw && !isHolidayParsha(raw)) {
-      const prefix = he ? 'פרשת ' : 'Parshat ';
-      infoBits.push(`${isParshaName(raw) ? prefix : ''}${raw}`);
-    }
-  }
+
+  if (parshaName && !(yiddishWeekday && showDate)) infoBits.push(parshaName);
   if (design.showDayCount !== false) {
     infoBits.push(he ? `יום ${gematria(index)} מתוך ${gematria(total)}` : `Day ${index} of ${total}`);
   }
@@ -442,7 +488,7 @@ function buildPosterMain({ design, textData, commentaries, settings, he }) {
 function buildPosterFoot({ design, textData, he }) {
   const foot = el('footer', 'pg-foot');
   const footLeft = el('div', 'pg-foot-note');
-  if (design.footerNote) footLeft.appendChild(el('span', null, esc(design.footerNote)));
+  if (design.footerNote) footLeft.appendChild(el('span', 'pg-footer-note', esc(design.footerNote)));
   const sourceBits = [];
   if (textData) {
     const vt = he && textData.versionTitleInHebrew ? textData.versionTitleInHebrew : textData.versionTitle;

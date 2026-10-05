@@ -190,6 +190,11 @@ body {
 .margin-input-row .margin-unit { flex: none; font-size: 11px; color: var(--ui-muted); text-transform: none; letter-spacing: 0; }
 .custom-page-size-fields[hidden] { display: none !important; }
 .custom-page-size-fields .hint { margin: -3px 0 12px; }
+.static-size-hint { margin: -4px 0 12px; }
+.static-size-field { margin-bottom: 10px; }
+.static-size-control { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.static-size-control input { min-width: 0; flex: 1 1 auto; }
+.static-size-unit { flex: none; min-width: 28px; color: var(--ui-muted); font-size: 12px; font-weight: 700; }
 .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; margin: 0 0 12px; }
 .field[hidden] { display: none !important; }
 .field-label {

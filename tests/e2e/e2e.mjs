@@ -439,6 +439,80 @@ try {
     });
   });
 
+  await scenario('static text sizes are exact, live-previewed and consistent in packed pages', async () => {
+    const chosenSizes = {
+      staticSizeInstitution: 41.3,
+      staticSizeDedication: 23.7,
+      staticSizeBadge: 17.8,
+      staticSizeInfo: 22.4,
+      staticSizeReference: 32.6,
+      staticSizeCommentaryLabel: 19.1,
+      staticSizeFooterNote: 16.2,
+      staticSizeAttribution: 11.2,
+      staticSizeProjectDedication: 15.3,
+    };
+    await evalJS(page, (sizes) => {
+      const dedication = document.getElementById('dedication');
+      dedication.value = 'In memory of the test';
+      dedication.dispatchEvent(new Event('input', { bubbles: true }));
+      const footer = document.getElementById('footerNote');
+      footer.value = 'Questions? test@example.org';
+      footer.dispatchEvent(new Event('input', { bubbles: true }));
+      for (const [id, value] of Object.entries(sizes)) {
+        const input = document.getElementById(id);
+        input.value = String(value);
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }, chosenSizes);
+    const expected = Object.values(chosenSizes);
+    const readSizes = () => evalJS(page, () => {
+      const page = document.querySelector('#renderStage .poster-page');
+      const one = (selector) => {
+        const node = page.querySelector(selector);
+        return node ? parseFloat(getComputedStyle(node).fontSize) : null;
+      };
+      return [
+        one('.pg-inst'), one('.pg-dedication'), one('.pg-badge'), one('.pg-info-bit'),
+        one('.pg-ref'), one('.pg-comm-label'), one('.pg-footer-note'), one('.pg-attr'),
+        one('.pg-project-dedication'),
+      ];
+    });
+    await waitFor(page, async () => JSON.stringify(await readSizes()) === JSON.stringify(expected));
+    const previewSizes = await evalJS(page, () => {
+      const page = document.querySelector('#previewCanvas .poster-page');
+      return [
+        '.pg-inst', '.pg-dedication', '.pg-badge', '.pg-info-bit', '.pg-ref',
+        '.pg-comm-label', '.pg-footer-note', '.pg-attr', '.pg-project-dedication',
+      ].map((selector) => parseFloat(getComputedStyle(page.querySelector(selector)).fontSize));
+    });
+    assert.deepEqual(previewSizes, expected, 'preview uses the exact selected poster-pixel sizes');
+
+    await evalJS(page, () => {
+      const mode = document.getElementById('layoutModeSel');
+      mode.value = 'fill';
+      mode.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await waitFor(page, () => $eval(page, '#renderStage .poster-page', (el) => el.classList.contains('layout-fill')));
+    const packed = await evalJS(page, () => {
+      const page = document.querySelector('#renderStage .poster-page.layout-fill');
+      const one = (selector) => {
+        const node = page.querySelector(selector);
+        return node ? parseFloat(getComputedStyle(node).fontSize) : null;
+      };
+      return [
+        one('.pg-inst'), one('.pg-dedication'), one('.pg-badge'), one('.pg-info-bit'),
+        one('.pg-ref'), one('.pg-comm-label'), one('.pg-footer-note'), one('.pg-attr'),
+        one('.pg-project-dedication'),
+      ];
+    });
+    assert.deepEqual(packed, expected, 'packed layout does not apply relative or compact font-size overrides');
+    await evalJS(page, () => {
+      const mode = document.getElementById('layoutModeSel');
+      mode.value = 'single';
+      mode.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  });
+
   await scenario('commentary font can differ from the mishna font', async () => {
     await evalJS(page, () => {
       const posterFont = document.getElementById('fontSel');
@@ -469,6 +543,34 @@ try {
     assert.equal(await $eval(page, '#masechetSel', (e) => e.value), 'Mishnah Bekhorot');
     assert.equal(await $eval(page, '#fontSel', (e) => e.value), 'heebo');
     assert.equal(await $eval(page, '#commentaryFontSel', (e) => e.value), 'david');
+    assert.equal(await $eval(page, '#staticSizeInstitution', (e) => e.value), '41.3');
+    const savedStaticSizes = await evalJS(page, () => JSON.parse(localStorage.getItem('mishna-poster-settings-v1')).design.staticTextSizes);
+    assert.equal(savedStaticSizes.projectDedication, 15.3, 'per-element sizes survive reload');
+
+    // Restore the stock typography/content so later output tests stay focused.
+    await evalJS(page, () => {
+      const defaults = {
+        staticSizeInstitution: 34,
+        staticSizeDedication: 19,
+        staticSizeBadge: 16.5,
+        staticSizeInfo: 18.5,
+        staticSizeReference: 30,
+        staticSizeCommentaryLabel: 15.2,
+        staticSizeFooterNote: 12.5,
+        staticSizeAttribution: 12.5,
+        staticSizeProjectDedication: 13,
+      };
+      for (const [id, value] of Object.entries(defaults)) {
+        const input = document.getElementById(id);
+        input.value = String(value);
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      for (const id of ['dedication', 'footerNote']) {
+        const input = document.getElementById(id);
+        input.value = '';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    });
   });
 
   await scenario('Legal page size drives poster, preview, PNG, raster PDF, and print', async () => {
@@ -720,6 +822,12 @@ try {
     assert.equal(saved.weekdayDisplay, 'yi');
     assert.equal(saved.showYomTovName, true);
     assert.equal(saved.yomTovDisplay, 'auto');
+
+    // Yiddish date lines read naturally: weekday, then parasha, then Hebrew date.
+    await setStartDate(page, '2026-09-14'); // Monday before the Haazinu fixture
+    await clickBuild(page);
+    const yiddishLine = await $eval(page, '#renderStage .pg-info-bit', (e) => e.textContent);
+    assert.match(yiddishLine, /^מאנטאג פרשת האזינו · /, `unexpected Yiddish date order: ${yiddishLine}`);
   });
 
   await scenario('holiday Torah readings are omitted from the poster parasha line', async () => {

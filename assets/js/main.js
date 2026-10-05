@@ -15,6 +15,7 @@ import {
   normalizeSettings, WEEKDAY_DISPLAY_STYLES, YOM_TOV_DISPLAY_STYLES,
   MIN_FONT_PX_MIN, MIN_FONT_PX_MAX, MAX_FONT_PX_MIN, MAX_FONT_PX_MAX,
   MARGIN_MIN_IN, MARGIN_MAX_IN,
+  DEFAULT_STATIC_TEXT_SIZES, STATIC_TEXT_FONT_PX_MIN, STATIC_TEXT_FONT_PX_MAX,
 } from './settings.js';
 import {
   MAX_PROFILES, PROFILE_OK, readProfiles, writeProfiles, saveProfile as saveProfileEntry,
@@ -93,6 +94,17 @@ const WD_LABELS = {
   en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
   he: ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'שבת'],
 };
+const STATIC_TEXT_SIZE_FIELDS = [
+  ['staticSizeInstitution', 'institution'],
+  ['staticSizeDedication', 'dedication'],
+  ['staticSizeBadge', 'badge'],
+  ['staticSizeInfo', 'info'],
+  ['staticSizeReference', 'reference'],
+  ['staticSizeCommentaryLabel', 'commentaryLabel'],
+  ['staticSizeFooterNote', 'footerNote'],
+  ['staticSizeAttribution', 'attribution'],
+  ['staticSizeProjectDedication', 'projectDedication'],
+];
 
 function el(tag, cls, html) {
   const e = document.createElement(tag);
@@ -1359,6 +1371,23 @@ function wire() {
     });
   }
 
+  const clampStaticTextSize = (value, key) => {
+    if (String(value).trim() === '') return settings.design.staticTextSizes[key] ?? DEFAULT_STATIC_TEXT_SIZES[key];
+    const n = Number(value);
+    const usable = Number.isFinite(n) ? n : DEFAULT_STATIC_TEXT_SIZES[key];
+    return Math.round(Math.max(STATIC_TEXT_FONT_PX_MIN, Math.min(STATIC_TEXT_FONT_PX_MAX, usable)) * 10) / 10;
+  };
+  for (const [inputId, key] of STATIC_TEXT_SIZE_FIELDS) {
+    const input = $(inputId);
+    input.value = String(settings.design.staticTextSizes[key]);
+    input.addEventListener('change', () => {
+      const size = clampStaticTextSize(input.value, key);
+      settings.design.staticTextSizes[key] = size;
+      input.value = String(size);
+      onDesignSettingChange();
+    });
+  }
+
   $('accentColor').value = settings.design.accent;
   $('accentColor').addEventListener('input', (e) => {
     settings.design.accent = e.target.value;
@@ -1643,6 +1672,9 @@ function refreshFormFromSettings() {
   $('institution').value = settings.design.institution;
   $('dedication').value = settings.design.dedication;
   $('footerNote').value = settings.design.footerNote;
+  for (const [inputId, key] of STATIC_TEXT_SIZE_FIELDS) {
+    $(inputId).value = String(settings.design.staticTextSizes[key]);
+  }
   $('bgOverlay').value = settings.design.bgOverlay;
   $('overlayVal').textContent = `${Math.round(settings.design.bgOverlay * 100)}%`;
   $('qualitySel').value = settings.design.quality;

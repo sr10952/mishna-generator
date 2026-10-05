@@ -822,6 +822,12 @@ try {
     assert.equal(saved.weekdayDisplay, 'yi');
     assert.equal(saved.showYomTovName, true);
     assert.equal(saved.yomTovDisplay, 'auto');
+
+    // Yiddish date lines read naturally: weekday, then parasha, then Hebrew date.
+    await setStartDate(page, '2026-09-14'); // Monday before the Haazinu fixture
+    await clickBuild(page);
+    const yiddishLine = await $eval(page, '#renderStage .pg-info-bit', (e) => e.textContent);
+    assert.match(yiddishLine, /^מאנטאג פרשת האזינו · /, `unexpected Yiddish date order: ${yiddishLine}`);
   });
 
   await scenario('holiday Torah readings are omitted from the poster parasha line', async () => {

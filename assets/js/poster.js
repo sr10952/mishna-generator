@@ -377,13 +377,36 @@ function buildPosterHead(design) {
 /** Poster info bar: badge (optional) + weekday/date + holiday + parsha + day count. */
 function buildPosterInfo({ date, design, he, calendar, index, total, settings, showBadge }) {
   const infoBits = [];
-  if (design.showDate !== false) {
-    const datePieces = [
-      formatPosterWeekday(date, design, he),
-      formatHebrewDate(date, he ? 'he' : 'en'),
-    ].filter(Boolean);
-    if (datePieces.length) infoBits.push(datePieces.join(' · '));
+  const showDate = design.showDate !== false;
+  const yiddishWeekday = design.weekdayDisplay === 'yi' || design.weekdayDisplay === 'yiddish';
+  const weekday = showDate ? formatPosterWeekday(date, design, he) : '';
+  const formattedDate = showDate ? formatHebrewDate(date, he ? 'he' : 'en') : '';
+
+  let parshaName = '';
+  if (design.showParsha !== false && calendar && calendar.parsha) {
+    const raw = he ? calendar.parsha.he : calendar.parsha.en;
+    // A holiday reading may be returned in the weekly-parasha slot (for
+    // example "סוכות חג ראשון"). Suppress it rather than duplicating or
+    // misleading the date information shown immediately beside it.
+    if (raw && !isHolidayParsha(raw)) {
+      const prefix = he ? 'פרשת ' : 'Parshat ';
+      parshaName = `${isParshaName(raw) ? prefix : ''}${raw}`;
+    }
   }
+
+  if (showDate) {
+    if (yiddishWeekday && parshaName) {
+      // Keep the Yiddish weekday, parasha, and date in one bidi run.
+      // Separate flex items can reverse around the RTL info bar and visually
+      // strand the parasha after the date instead of between weekday and date.
+      const weekdayAndParsha = [weekday, parshaName].filter(Boolean).join(' ');
+      infoBits.push([weekdayAndParsha, formattedDate].filter(Boolean).join(' · '));
+    } else {
+      const datePieces = [weekday, formattedDate].filter(Boolean);
+      if (datePieces.length) infoBits.push(datePieces.join(' · '));
+    }
+  }
+
   if (design.showYomTovName === true) {
     // Main.js stores the per-entry value so all generated output is stable,
     // even if the weekly calendar request failed. Keep this fallback for
@@ -396,16 +419,8 @@ function buildPosterInfo({ date, design, he, calendar, index, total, settings, s
     });
     if (yomTovName) infoBits.push(yomTovName);
   }
-  if (design.showParsha !== false && calendar && calendar.parsha) {
-    const raw = he ? calendar.parsha.he : calendar.parsha.en;
-    // A holiday reading may be returned in the weekly-parasha slot (for
-    // example "סוכות חג ראשון"). Suppress it rather than duplicating or
-    // misleading the date information shown immediately beside it.
-    if (raw && !isHolidayParsha(raw)) {
-      const prefix = he ? 'פרשת ' : 'Parshat ';
-      infoBits.push(`${isParshaName(raw) ? prefix : ''}${raw}`);
-    }
-  }
+
+  if (parshaName && !(yiddishWeekday && showDate)) infoBits.push(parshaName);
   if (design.showDayCount !== false) {
     infoBits.push(he ? `יום ${gematria(index)} מתוך ${gematria(total)}` : `Day ${index} of ${total}`);
   }

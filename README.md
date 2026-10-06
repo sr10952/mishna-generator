@@ -50,10 +50,11 @@ and served locally.
 - Upload your own **logo** and **background image** for a fully custom letterhead
 - Accent color picker, independent mishna and commentary font choices, overlay darkness control for background images
 - Letter (8.5″ × 11″), Legal (8.5″ × 14″), and Tabloid (11″ × 17″) presets, plus a custom width × height size from 5″ to 17″ on each side — consistently applied to preview, PDF, PNG, and print
+- **Page frame** — keep the template's own frame, force a single or double line on any template, or choose **Frameless**, which draws nothing at all so an uploaded background image with its own border shows through untouched
 - **Layout options** (Design → Layout):
   - **One mishna per page** — auto-stretched to fill the page, with a user-set ceiling font size (default 64 px)
   - **Pack as many mishnas per page as fit** — pages are filled greedily down to a floor font size (default 14 px) before breaking to the next page; several learning days share a page and the schedule table still jumps to the right page
-  - **Margins** — independent top / right / bottom / left insets (inches) that move the text in from each page edge, so text never collides with pre-printed stationery, template borders, or drawn-over artwork
+  - **Margins** — independent top / right / bottom / left insets from **0 to 4 inches** that move the text in from each page edge, so text never collides with pre-printed stationery, template borders, or drawn-over artwork; even extreme combinations always leave a readable text area
   - **Text alignment** — language-native right/left, justified, or centered (applies to mishna and commentary)
   - **Exact static-text sizes** — set independent, fixed poster-pixel sizes for the institution name, dedication, Daily Mishna badge, date/info line, mishna reference, commentary labels, custom footer, text attribution, and project dedication. The chosen sizes stay identical across pages and both layout modes, are separate from the mishna floor/ceiling, and update the live preview automatically
   - **Commentary layout** — flowing paragraphs (default, space-saving) or classic one-line-per-דיבור-המתחיל blocks
@@ -82,6 +83,11 @@ and served locally.
   - `tools/build-content.mjs` — targeted whole-chapter captures from the live Sefaria API
 - Installable PWA with a manifest, icons, and an offline-first service worker that
   precaches the entire app shell (`tools/build-sw.mjs` regenerates `sw.js`)
+- **Release versioning + live updates** — every release carries a version number
+  (shown in the top bar and stamped into the service worker and its cache name);
+  online users' open tabs check for new releases proactively and get a one-click
+  "reload to update" notice as soon as one is installed (see
+  [Versioning & updates](#versioning--updates))
 - A memorial **project dedication** line — *לע״נ אסתר בילא ע״ה בת יבלחט״א מו״ה שמשון צבי ני״ו* — is shown
   at the bottom of every poster by default; it can be turned off (with confirmation) and is
   pure Hebrew so native-Hebrew posters stay Latin-free
@@ -144,8 +150,8 @@ then open <http://localhost:8930>. (ES modules require http:// — `file://` won
 
 ```bash
 npm install        # dev deps only (puppeteer-core + @sparticuz/chromium for headless tests)
-npm test           # 77 unit tests
-npm run test:e2e   # 37 end-to-end scenarios in real headless Chromium (offline, fixture-driven)
+npm test           # 83 unit tests
+npm run test:e2e   # 38 end-to-end scenarios in real headless Chromium (offline, fixture-driven)
 npm run test:all   # everything
 ```
 
@@ -166,18 +172,55 @@ scenarios cover the memorial project dedication (default-on, confirm-to-remove, 
 saved-profile save/load/rename/delete; JSON backup export/import (image-free, validated);
 bundled content rendering the example with the Sefaria API fully blocked; graceful
 degradation to the API when the bundled store is unavailable; and the PWA
-manifest / icons / service worker being served. The **Layout** scenarios drive the real
+manifest / icons / service worker being served, including the release **version
+stamp** in `sw.js` and the version chip in the UI. The **Layout** scenarios drive the real
 controls end-to-end: flowing commentary collapses to a single running paragraph,
-margins move the text region (48 px ↔ 120 px insets verified), justify/center/right
+margins move the text region (48 px ↔ 288 px insets verified, including the 3 in
+value that used to snap back to the old 2 in cap), justify/center/right
 alignment applies, and fill mode packs all four Bekhorot mishnayot onto fewer pages
 with every unit present, nothing overflowing, fonts inside the floor/ceiling bounds,
-and the schedule table jumping to the packed page that holds a clicked day. A further
+and the schedule table jumping to the packed page that holds a clicked day. The
+**Page frame** scenario verifies that frameless draws nothing at all while
+solid/double override any template. A further
 scenario checks `robots.txt`, the Open Graph / Twitter tags, and the JSON-LD block.
 
 The unit suite adds focused coverage for the settings schema and migration/normalization
-(`settings.test.mjs`), including the layout enums, mishna font floor/ceiling limits,
-exact fixed text-size defaults/bounds, and page-margin bounds; profile serialization, limits, and backup validation
-(`profiles.test.mjs`); and the bundled content store (`content.test.mjs`).
+(`settings.test.mjs`), including the layout enums, frame styles, mishna font
+floor/ceiling limits, exact fixed text-size defaults/bounds, and page-margin bounds;
+profile serialization, limits, and backup validation (`profiles.test.mjs`); the
+bundled content store (`content.test.mjs`); and release-version consistency between
+`package.json`, `assets/js/version.js`, and `sw.js` (`version.test.mjs`).
+
+## Versioning & updates
+
+The app is an offline-first PWA, but **online users must receive every release**.
+These requirements govern how updates ship:
+
+1. **One release version number, bumped at every release.** The single source of
+   truth is the semver `version` field in `package.json` (currently **1.1.0**).
+   `node tools/build-sw.mjs` reads it and stamps it, in lock-step, into:
+   - `assets/js/version.js` (`APP_VERSION`) — shown as the `vX.Y.Z` chip in the top bar;
+   - `sw.js` (`const VERSION`) and the cache name
+     (`mishna-poster-vX.Y.Z-<content-hash>`), so every release starts a fresh
+     precache and old caches are deleted on activate. The content hash stays as a
+     safety net, so even a forgotten version bump can never serve a stale shell.
+2. **Active users get the update while the site is open.** The page asks the
+   service worker to re-check for a new release when the tab regains focus or
+   visibility, when the browser comes back online, and every 30 minutes while the
+   tab stays open (instead of waiting for the browser's own periodic check).
+3. **Updates apply without losing work; the user stays in control.** The worker
+   installs with `skipWaiting` + `clients.claim`, so a downloaded release takes
+   over immediately; the app then shows a dismissible "Version X.Y.Z is ready —
+   Reload" banner. Settings persist in `localStorage`, so the reload is safe;
+   choosing "Later" is remembered for that exact version.
+4. **Offline use is never harmed by any of the above.** Update checks are
+   network-only progressive enhancements; with no connection the precached shell
+   and the bundled Mishnah text store keep working exactly as before.
+
+**Release checklist:** bump `version` in `package.json` → run
+`node tools/build-sw.mjs` (regenerates `assets/js/version.js` + `sw.js`) → commit
+and deploy. Unit tests (`version.test.mjs`) fail if the three copies of the
+version ever disagree.
 
 ## Project structure
 
@@ -189,7 +232,8 @@ robots.txt              SEO allow-all; precached by the service worker
 assets/
   css/                  main.css (app UI + modals), poster.css (print/poster geometry), fonts.css
   js/
-    main.js             app wiring, i18n switching, profile/backup UI, modals, SW registration
+    main.js             app wiring, i18n switching, profile/backup UI, modals, SW registration + update banner
+    version.js          release version shown in the UI (generated by tools/build-sw.mjs)
     settings.js         canonical settings schema, DEFAULTS, normalize/migrate, image safety
     profiles.js         saved-profile CRUD + limits, JSON backup build/parse/validate/merge
     content.js          bundled offline content loader (Sefaria-independent) + API fallback
@@ -206,16 +250,18 @@ assets/
   fonts/                self-hosted woff2 (Frank Ruhl Libre, David Libre, Heebo, Miriam Libre)
   vendor/               html2canvas 1.4.1, jsPDF 3 (self-hosted, MIT)
 tests/
-  unit/                 77 unit tests (node --test): hebrew, i18n, poster, schedule,
-                        settings, profiles, content
+  unit/                 83 unit tests (node --test): hebrew, i18n, poster, schedule,
+                        settings, profiles, content, version
   e2e/                  e2e.mjs + browser.mjs (chromium bootstrap, static server,
-                        Sefaria fixture interceptor) — 37 scenarios, runs fully offline
+                        Sefaria fixture interceptor) — 38 scenarios, runs fully offline
   fixtures/             recorded Sefaria API responses
 tools/build-fixtures.mjs rebuilds the fixtures from the live API
 tools/fetch-corpus-github.mjs  bulk-builds the offline corpus (whole Mishnah) from
                                Sefaria's open dataset via the GitHub Contents API
 tools/build-content.mjs  targeted captures into assets/content/ from the live Sefaria API
-tools/build-sw.mjs       regenerates sw.js's precache list from the files on disk
+tools/build-sw.mjs       regenerates sw.js's precache list from the files on disk,
+                         stamping the package.json release version into sw.js and
+                         assets/js/version.js (run for every release)
 ```
 
 ## Data & licensing

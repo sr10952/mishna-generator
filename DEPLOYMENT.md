@@ -132,6 +132,24 @@ git add -A && git commit -m "..." && git push
 - **Cloudflare Pages (Option A)** and **GitHub Pages (Option D)** rebuild automatically.
 - **Option B** re-run the `wrangler pages deploy` command.
 
+## Cutting a release (versioning — required for every release)
+
+Every release carries a user-visible version number so online users provably
+receive updates (see README → *Versioning & updates*):
+
+1. **Bump** the semver `version` field in `package.json` (patch for fixes,
+   minor for features, major for breaking changes).
+2. **Regenerate** the stamped files: `node tools/build-sw.mjs` — this rewrites
+   `assets/js/version.js` (the top-bar `vX.Y.Z` chip) and `sw.js` (its
+   `VERSION` constant and the versioned cache name) from `package.json`.
+3. **Commit all three** (`package.json`, `assets/js/version.js`, `sw.js`) and
+   push/deploy as above.
+
+The fresh cache name makes every visitor's browser swap to the new build on the
+next visit, and the app itself re-checks for updates while a tab is open and
+offers active users a one-click reload when a newer release installs. Unit tests
+(`tests/unit/version.test.mjs`) fail if the version copies ever drift apart.
+
 ## Offline / USB use (PWA)
 
 The app is an installable Progressive Web App and works **100% offline** once loaded:

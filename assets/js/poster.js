@@ -264,6 +264,41 @@ function pxFromInches(value) {
   return Math.round((Number.isFinite(n) ? n : 0) * CSS_PIXELS_PER_INCH);
 }
 
+/** Smallest text region the render guard always preserves (0.5 in per axis). */
+export const MIN_CONTENT_AREA_PX = 48;
+
+/**
+ * Resolve the user's inch margins into pixel insets for one page size, with a
+ * render-time safety net: the stored setting is never rewritten, but if the
+ * opposing margins of one axis would together consume the whole page (leaving
+ * no text area at all), both are scaled down proportionally so at least
+ * MIN_CONTENT_AREA_PX of content survives. Margins within the supported range
+ * (0-4 in) pass through untouched on every standard and custom page size.
+ *
+ * @param {object} design  design settings (marginTop/Right/Bottom/Left in inches)
+ * @param {object} pageSize page format from getPageSize() (width/height in px)
+ * @returns {{top:number,right:number,bottom:number,left:number}} px insets
+ */
+export function resolveContentInsets(design, pageSize) {
+  const insets = {
+    top: pxFromInches(design.marginTop),
+    right: pxFromInches(design.marginRight),
+    bottom: pxFromInches(design.marginBottom),
+    left: pxFromInches(design.marginLeft),
+  };
+  const guardAxis = (a, b, total) => {
+    const sum = insets[a] + insets[b];
+    const maxSum = Math.max(0, total - MIN_CONTENT_AREA_PX);
+    if (sum <= maxSum || sum <= 0) return;
+    const scale = maxSum / sum;
+    insets[a] = Math.floor(insets[a] * scale);
+    insets[b] = Math.floor(insets[b] * scale);
+  };
+  guardAxis('top', 'bottom', pageSize.height);
+  guardAxis('left', 'right', pageSize.width);
+  return insets;
+}
+
 function commentaryPxFor(textPx) {
   // The commentary stays proportional to the mishna (16px @ 33px), never above
   // 80% of it, and never below its own readable floor.
@@ -318,7 +353,22 @@ function createPageShell({ settings, pageSize, template, he, layoutMode }) {
   if (template.palette) {
     for (const [k, v] of Object.entries(template.palette)) page.style.setProperty(`--pg-${k}`, v);
   }
-  if (design.frame) page.style.setProperty('--pg-frame-style', design.frame);
+  // Page frame: 'auto' keeps the template's own frame (random templates
+  // carry their rolled style), 'none' draws nothing at all (frameless — the
+  // best match for a full uploaded background image), 'solid'/'double' force
+  // that line style on any template.
+  const frameChoice = design.frame && design.frame !== 'auto' ? design.frame : (template.frame || 'auto');
+  page.dataset.frame = frameChoice === 'auto' ? 'template' : frameChoice;
+  if (frameChoice === 'none') {
+    page.classList.add('frame-none');
+  } else {
+    if (frameChoice === 'solid' || frameChoice === 'double') {
+      page.classList.add(`frame-${frameChoice}`);
+      page.style.setProperty('--pg-frame-style', frameChoice);
+    } else if (template.frame) {
+      page.style.setProperty('--pg-frame-style', template.frame);
+    }
+  }
   page.style.setProperty('--pg-font', (FONTS[design.font] || FONTS.frank).css);
   page.style.setProperty('--pg-comm-font', (FONTS[design.commentaryFont] || FONTS[design.font] || FONTS.frank).css);
   page.style.setProperty('--pg-page-width', `${pageSize.width}px`);
@@ -327,11 +377,14 @@ function createPageShell({ settings, pageSize, template, he, layoutMode }) {
 
   // Text margins: the distance the content column keeps from each page edge.
   // These complement the page size so pre-printed templates / drawn-over
-  // artwork can reserve their own gutters.
-  page.style.setProperty('--pg-mt', `${pxFromInches(design.marginTop)}px`);
-  page.style.setProperty('--pg-mr', `${pxFromInches(design.marginRight)}px`);
-  page.style.setProperty('--pg-mb', `${pxFromInches(design.marginBottom)}px`);
-  page.style.setProperty('--pg-ml', `${pxFromInches(design.marginLeft)}px`);
+  // artwork can reserve their own gutters. resolveContentInsets keeps the
+  // stored values verbatim and only rescues pathological combinations that
+  // would otherwise leave no text area at all.
+  const insets = resolveContentInsets(design, pageSize);
+  page.style.setProperty('--pg-mt', `${insets.top}px`);
+  page.style.setProperty('--pg-mr', `${insets.right}px`);
+  page.style.setProperty('--pg-mb', `${insets.bottom}px`);
+  page.style.setProperty('--pg-ml', `${insets.left}px`);
 
   // Justify / centered body text (auto keeps the per-language default).
   if (design.textAlign && design.textAlign !== 'auto') page.dataset.align = design.textAlign;
@@ -347,8 +400,12 @@ function createPageShell({ settings, pageSize, template, he, layoutMode }) {
     overlay.style.setProperty('--pg-overlay-alpha', String(design.bgOverlay ?? 0.85));
     page.appendChild(overlay);
   }
-  page.appendChild(el('div', 'pg-frame pg-frame-outer'));
-  page.appendChild(el('div', 'pg-frame pg-frame-inner'));
+  // Frameless mode adds nothing: no frame elements are created at all, so a
+  // custom background image shows through without any drawn-over borders.
+  if (frameChoice !== 'none') {
+    page.appendChild(el('div', 'pg-frame pg-frame-outer'));
+    page.appendChild(el('div', 'pg-frame pg-frame-inner'));
+  }
 
   // --- content column ----------------------------------------------------
   const content = el('div', 'pg-content');

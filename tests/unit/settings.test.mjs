@@ -5,6 +5,7 @@ import {
   SETTINGS_SCHEMA_VERSION, PROJECT_DEDICATION_HE,
   DEFAULT_MIN_FONT_PX, DEFAULT_MAX_FONT_PX,
   DEFAULT_STATIC_TEXT_SIZES, STATIC_TEXT_FONT_PX_MIN, STATIC_TEXT_FONT_PX_MAX,
+  MARGIN_MIN_IN, MARGIN_MAX_IN, FRAME_STYLES,
 } from '../../assets/js/settings.js';
 
 test('DEFAULTS is a complete, self-consistent schema', () => {
@@ -21,6 +22,8 @@ test('DEFAULTS is a complete, self-consistent schema', () => {
   assert.equal(DEFAULTS.design.minMishnaFontPx, DEFAULT_MIN_FONT_PX);
   assert.equal(DEFAULTS.design.maxMishnaFontPx, DEFAULT_MAX_FONT_PX);
   assert.ok(DEFAULTS.design.maxMishnaFontPx >= DEFAULTS.design.minMishnaFontPx);
+  // 'auto' keeps each template's own frame; existing behavior is unchanged.
+  assert.equal(DEFAULTS.design.frame, 'auto');
   assert.equal(DEFAULTS.design.marginTop, 0.5);
   assert.equal(DEFAULTS.design.marginBottom, 0.5);
   assert.equal(DEFAULTS.design.marginRight, 0.6);
@@ -79,12 +82,30 @@ test('normalizeSettings validates the layout enums and font limits', () => {
   assert.equal(crossed.design.minMishnaFontPx, 80);
 });
 
-test('normalizeSettings bounds the page margins to 0..2 inches', () => {
+test('normalizeSettings bounds the page margins to 0..4 inches', () => {
+  assert.equal(MARGIN_MIN_IN, 0);
+  assert.equal(MARGIN_MAX_IN, 4);
   const s = normalizeSettings({ design: { marginTop: 5, marginBottom: -1, marginLeft: '1.25', marginRight: 'oops' } });
-  assert.equal(s.design.marginTop, 2);
+  assert.equal(s.design.marginTop, 4);
   assert.equal(s.design.marginBottom, 0);
   assert.equal(s.design.marginLeft, 1.25);
   assert.equal(s.design.marginRight, DEFAULTS.design.marginRight);
+  // The reported regression: 3 in must stay 3 in, not pop back to an old cap.
+  const three = normalizeSettings({ design: { marginTop: 3, marginRight: 3, marginBottom: 3, marginLeft: 3 } });
+  assert.deepEqual(
+    [three.design.marginTop, three.design.marginRight, three.design.marginBottom, three.design.marginLeft],
+    [3, 3, 3, 3],
+  );
+});
+
+test('normalizeSettings validates the page frame style', () => {
+  assert.equal(normalizeSettings({}).design.frame, 'auto');
+  for (const style of ['auto', 'none', 'solid', 'double']) {
+    assert.equal(normalizeSettings({ design: { frame: style } }).design.frame, style);
+    assert.ok(FRAME_STYLES.has(style));
+  }
+  assert.equal(normalizeSettings({ design: { frame: 'ornate' } }).design.frame, 'auto');
+  assert.equal(normalizeSettings({ design: { frame: 5 } }).design.frame, 'auto');
 });
 
 test('static text sizes are exact, independent poster-pixel values with safe import bounds', () => {

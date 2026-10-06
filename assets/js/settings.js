@@ -18,7 +18,7 @@
 import { getPageSize, FONTS } from './poster.js';
 
 /** Bumped whenever the settings shape changes in a way import must migrate. */
-export const SETTINGS_SCHEMA_VERSION = 4;
+export const SETTINGS_SCHEMA_VERSION = 5;
 
 /** Stable identifier written into backup files so imports can be validated. */
 export const APP_ID = 'mishna-poster-generator';
@@ -31,6 +31,11 @@ const QUALITY_IDS = new Set(['draft', 'high', 'ultra']);
 const LAYOUT_MODES = new Set(['single', 'fill']);
 const TEXT_ALIGNMENTS = new Set(['auto', 'justify', 'center']);
 const COMMENTARY_LAYOUTS = new Set(['flow', 'blocks']);
+
+/** Page frame styles. 'auto' keeps the chosen template's own frame; 'none'
+ *  is the frameless option (nothing is drawn) that pairs best with a full
+ *  uploaded background image. */
+export const FRAME_STYLES = new Set(['auto', 'none', 'solid', 'double']);
 
 /** User-adjustable typography limits for the poster body text (CSS px). */
 export const MIN_FONT_PX_MIN = 11;
@@ -55,9 +60,13 @@ export const DEFAULT_STATIC_TEXT_SIZES = Object.freeze({
   projectDedication: 13,
 });
 
-/** Page margins (inches) - text inset from each of the four page edges. */
+/** Page margins (inches) - text inset from each of the four page edges.
+ *  The ceiling is generous (4 in) so posters printed on pre-framed or
+ *  heavily-bordered stationery can keep the text well clear of the artwork;
+ *  rendering still guards against margins that would erase the text area
+ *  entirely (see resolveContentInsets in poster.js). */
 export const MARGIN_MIN_IN = 0;
-export const MARGIN_MAX_IN = 2;
+export const MARGIN_MAX_IN = 4;
 
 /**
  * Image fields are uploaded, potentially private data URLs. They are never
@@ -132,6 +141,7 @@ export function makeDefaults() {
       layoutMode: 'single',
       textAlign: 'auto',      // 'auto' | 'justify' | 'center'
       commLayout: 'flow',     // 'flow' = commentary paragraphs flow inline | 'blocks'
+      frame: 'auto',          // 'auto' | 'none' (frameless) | 'solid' | 'double'
       minMishnaFontPx: DEFAULT_MIN_FONT_PX,
       maxMishnaFontPx: DEFAULT_MAX_FONT_PX,
       marginTop: 0.5,         // inches, text inset from the page edges
@@ -265,6 +275,7 @@ export function normalizeSettings(raw) {
   dd.layoutMode = LAYOUT_MODES.has(d.layoutMode) ? d.layoutMode : DEFAULTS.design.layoutMode;
   dd.textAlign = TEXT_ALIGNMENTS.has(d.textAlign) ? d.textAlign : DEFAULTS.design.textAlign;
   dd.commLayout = COMMENTARY_LAYOUTS.has(d.commLayout) ? d.commLayout : DEFAULTS.design.commLayout;
+  dd.frame = FRAME_STYLES.has(d.frame) ? d.frame : DEFAULTS.design.frame;
   let minPx = clampInt(d.minMishnaFontPx, MIN_FONT_PX_MIN, MIN_FONT_PX_MAX, DEFAULT_MIN_FONT_PX);
   let maxPx = clampInt(d.maxMishnaFontPx, MAX_FONT_PX_MIN, MAX_FONT_PX_MAX, DEFAULT_MAX_FONT_PX);
   if (minPx > maxPx) maxPx = minPx; // the ceiling always covers the floor

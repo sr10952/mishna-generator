@@ -13,10 +13,12 @@ import { buildPosterPage, paginateFillPages, autofitPage, ensureFontsLoaded, TEM
 import { generatePdf, renderPagePng, savePdf, suggestedFilename, QUALITIES } from './pdf.js';
 import {
   normalizeSettings, WEEKDAY_DISPLAY_STYLES, YOM_TOV_DISPLAY_STYLES,
+  FRAME_STYLES,
   MIN_FONT_PX_MIN, MIN_FONT_PX_MAX, MAX_FONT_PX_MIN, MAX_FONT_PX_MAX,
   MARGIN_MIN_IN, MARGIN_MAX_IN,
   DEFAULT_STATIC_TEXT_SIZES, STATIC_TEXT_FONT_PX_MIN, STATIC_TEXT_FONT_PX_MAX,
 } from './settings.js';
+import { APP_VERSION } from './version.js';
 import {
   MAX_PROFILES, PROFILE_OK, readProfiles, writeProfiles, saveProfile as saveProfileEntry,
   loadProfile as loadProfileEntry, renameProfile as renameProfileEntry, deleteProfile as deleteProfileEntry,
@@ -202,6 +204,14 @@ function fitPreviewWidth() {
  * i18n application
  * =========================================================================*/
 
+/** Release version chip in the top bar (see assets/js/version.js). */
+function renderAppVersion() {
+  const chip = $('appVersion');
+  if (!chip) return;
+  chip.textContent = `v${APP_VERSION}`;
+  chip.title = t('appVersionTitle');
+}
+
 function applyI18n() {
   const he = getLang() === 'he';
   document.documentElement.lang = he ? 'he' : 'en';
@@ -230,6 +240,7 @@ function applyI18n() {
   syncAccentPresets();
   updateScheduleTable();
   updatePreviewChrome();
+  renderAppVersion();
   if ($('profileSelect')) renderProfiles();
 }
 
@@ -1297,6 +1308,12 @@ function wire() {
     onDesignSettingChange();
   });
 
+  $('frameSel').value = settings.design.frame;
+  $('frameSel').addEventListener('change', (e) => {
+    settings.design.frame = FRAME_STYLES.has(e.target.value) ? e.target.value : 'auto';
+    onDesignSettingChange();
+  });
+
   $('fontSel').addEventListener('change', (e) => { settings.design.font = e.target.value; onDesignSettingChange(); });
   $('commentaryFontSel').addEventListener('change', (e) => { settings.design.commentaryFont = e.target.value; onDesignSettingChange(); });
   $('pageSizeSel').value = getPageSize(settings.design).id;
@@ -1656,6 +1673,7 @@ function refreshFormFromSettings() {
   $('showAttributionInfo').checked = settings.design.showAttribution;
   $('showProjectDedicationInfo').checked = settings.design.showProjectDedication !== false;
   renderTemplateOptions();
+  $('frameSel').value = settings.design.frame;
   renderFontOptions();
   $('pageSizeSel').value = getPageSize(settings.design).id;
   syncCustomPageSizeControls();
@@ -1822,12 +1840,100 @@ function init() {
 init();
 
 /* ===========================================================================
- * PWA: register the offline service worker (progressive enhancement).
- * Works from http(s) and from file://-served static copies where supported.
+ * PWA: register the offline service worker (progressive enhancement) and keep
+ * online users on the newest release.
+ *
+ * The worker precaches the whole app shell for offline use. For users with a
+ * connection we additionally *check* for a new release while the page is open
+ * (on reconnect, when the tab becomes visible, and every 30 minutes) instead
+ * of waiting for the browser's own periodic check. sw.js installs with
+ * skipWaiting + clients.claim, so a freshly downloaded release takes over the
+ * open tab immediately; the banner below then invites the user to reload so
+ * the page running in memory matches what the new worker serves.
  * =========================================================================*/
+
+const UPDATE_DISMISS_KEY = 'mishna-poster-update-dismissed-v1';
+const UPDATE_CHECK_MIN_GAP_MS = 30 * 1000;
+const UPDATE_CHECK_INTERVAL_MS = 30 * 60 * 1000;
+let lastUpdateCheck = 0;
+
+function requestSwUpdateCheck(registration) {
+  if (!registration || !('onLine' in navigator) || !navigator.onLine) return;
+  const now = Date.now();
+  if (now - lastUpdateCheck < UPDATE_CHECK_MIN_GAP_MS) return;
+  lastUpdateCheck = now;
+  try { registration.update().catch(() => { /* offline blip - next check retries */ }); } catch { /* ignore */ }
+}
+
+/** Ask the active service worker which release it serves. */
+function askSwVersion(controller) {
+  return new Promise((resolve) => {
+    const fallback = () => resolve(APP_VERSION);
+    if (!controller || typeof MessageChannel !== 'function') return fallback();
+    const channel = new MessageChannel();
+    const timer = setTimeout(fallback, 1500);
+    channel.port1.onmessage = (event) => {
+      clearTimeout(timer);
+      const v = event.data && event.data.version;
+      resolve(typeof v === 'string' && v ? v : APP_VERSION);
+    };
+    try { controller.postMessage({ type: 'GET_VERSION' }, [channel.port2]); }
+    catch { clearTimeout(timer); fallback(); }
+  });
+}
+
+/** Non-blocking "a new version is ready" notice for active users. */
+function showUpdateBanner(version) {
+  const banner = $('updateBanner');
+  if (!banner) return;
+  let dismissed = '';
+  try { dismissed = localStorage.getItem(UPDATE_DISMISS_KEY) || ''; } catch { /* ignore */ }
+  if (dismissed === version) return; // "Later" was chosen for this exact release
+  const text = $('updateVersionText');
+  if (text) text.textContent = t('updateReady', { version });
+  banner.hidden = false;
+  const reloadBtn = $('updateReloadBtn');
+  const laterBtn = $('updateLaterBtn');
+  if (reloadBtn) reloadBtn.onclick = () => window.location.reload();
+  if (laterBtn) laterBtn.onclick = () => {
+    banner.hidden = true;
+    try { localStorage.setItem(UPDATE_DISMISS_KEY, version); } catch { /* ignore */ }
+  };
+}
+
+function wireSwUpdates(registration) {
+  // Distinguish a first-ever install (no controller yet when the update is
+  // found) from a genuine update of an already-running worker.
+  let updatePending = false;
+  registration.addEventListener('updatefound', () => {
+    const worker = registration.installing;
+    if (!worker) return;
+    worker.addEventListener('statechange', () => {
+      if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+        updatePending = true; // a newer release just replaced our shell
+      }
+    });
+  });
+  navigator.serviceWorker.addEventListener('controllerchange', async () => {
+    if (!updatePending) return; // first-time claim of a fresh install
+    updatePending = false;
+    const version = await askSwVersion(navigator.serviceWorker.controller);
+    showUpdateBanner(version);
+  });
+
+  const check = () => requestSwUpdateCheck(registration);
+  window.addEventListener('online', check);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
+  window.addEventListener('focus', check);
+  window.setInterval(check, UPDATE_CHECK_INTERVAL_MS);
+  check();
+}
+
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     const swUrl = new URL('sw.js', document.baseURI).href;
-    navigator.serviceWorker.register(swUrl).catch(() => { /* offline install optional */ });
+    navigator.serviceWorker.register(swUrl)
+      .then(wireSwUpdates)
+      .catch(() => { /* offline install optional */ });
   });
 }

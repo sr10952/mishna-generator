@@ -1009,11 +1009,25 @@ try {
     assert.ok(manifest, 'manifest must be fetchable');
     assert.equal(manifest.display, 'standalone');
     assert.ok(manifest.icons.length >= 2);
-    const swOk = await evalJS(page, async () => {
+    const swText = await evalJS(page, async () => {
       const res = await fetch('sw.js');
-      return res.ok && (await res.text()).includes('addEventListener');
+      return res.ok ? res.text() : null;
     });
-    assert.equal(swOk, true, 'sw.js must be served and look like a service worker');
+    assert.ok(swText && swText.includes('addEventListener'), 'sw.js must be served and look like a service worker');
+
+    // Release versioning: the worker is stamped with a semver release number,
+    // its cache name carries that version, and the UI shows the same number.
+    assert.match(swText, /const VERSION = '\d+\.\d+\.\d+';/, 'sw.js must carry a release version');
+    assert.match(swText, /const CACHE = 'mishna-poster-v\d+\.\d+\.\d+-[0-9a-f]{12}';/, 'cache name must carry the release version');
+    assert.ok(swText.includes('GET_VERSION'), 'sw.js must answer version queries from the page');
+    const chipVersion = await $eval(page, '#appVersion', (e) => e.textContent.trim());
+    assert.match(chipVersion, /^v\d+\.\d+\.\d+$/, 'the UI must show the release version');
+    const servedVersion = await evalJS(page, async () => {
+      const res = await fetch('assets/js/version.js');
+      const m = res.ok ? /APP_VERSION = '([^']+)'/.exec(await res.text()) : null;
+      return m ? m[1] : null;
+    });
+    assert.equal(chipVersion, `v${servedVersion}`, 'the UI chip must match the shipped version module');
     const iconOk = await evalJS(page, async () => (await fetch('assets/icons/icon-192.png')).ok);
     assert.equal(iconOk, true);
   });
@@ -1152,6 +1166,17 @@ try {
     });
     await waitFor(page, () => $eval(page, '#renderStage .pg-content', (e) => getComputedStyle(e).bottom === '72px'));
 
+    // Reported regression: margins go up to 4 in now; 3 in must be accepted
+    // and applied (288 px), not popped back to the old 2 in cap.
+    assert.equal(await $eval(page, '#marginTop', (e) => e.max), '4', 'margin inputs allow up to 4 in');
+    await evalJS(page, () => {
+      const m = document.getElementById('marginTop');
+      m.value = '3';
+      m.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await waitFor(page, () => $eval(page, '#renderStage .pg-content', (e) => getComputedStyle(e).top === '288px'));
+    assert.equal(await $eval(page, '#marginTop', (e) => e.value), '3', 'the 3 in margin must stay in the input');
+
     // Alignment: justify, then center, then back to the language default.
     await evalJS(page, () => {
       const s = document.getElementById('textAlignSel');
@@ -1195,6 +1220,61 @@ try {
     });
     await waitFor(page, () => $eval(page, '#renderStage .pg-content', (e) => getComputedStyle(e).top === '48px'));
     await waitFor(page, () => evalJS(page, () => document.querySelectorAll('#renderStage .pg-comm-text p').length === 4)); // one joined paragraph per page
+    assert.equal(page.__errors.length, 0, `console errors: ${page.__errors.join(' | ')}`);
+  });
+
+  await scenario('page frame: frameless draws nothing, solid/double override the template', async () => {
+    await page.goto(BASE, { waitUntil: 'networkidle0' });
+    await evalJS(page, () => localStorage.clear());
+    page.__errors.length = 0;
+    await page.reload({ waitUntil: 'networkidle0' });
+    await setStartDate(page, '2026-09-03');
+    await evalJS(page, () => { const c = document.getElementById('count'); c.value = '2'; c.dispatchEvent(new Event('change', { bubbles: true })); });
+    await clickBuild(page);
+
+    // Default (classic template): the template's own double frame is drawn.
+    const before = await evalJS(page, () => {
+      const p = document.querySelector('#renderStage .poster-page');
+      return {
+        frames: p.querySelectorAll('.pg-frame').length,
+        outerStyle: getComputedStyle(p.querySelector('.pg-frame-outer')).borderStyle,
+      };
+    });
+    assert.equal(before.frames, 2, 'template default keeps both frame elements');
+    assert.equal(before.outerStyle, 'double');
+
+    // Frameless: nothing is added to the page at all (best with a background).
+    await evalJS(page, () => {
+      const s = document.getElementById('frameSel');
+      s.value = 'none';
+      s.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await waitFor(page, () => evalJS(page, () => {
+      const p = document.querySelector('#renderStage .poster-page');
+      return p && p.classList.contains('frame-none');
+    }));
+    const frameless = await evalJS(page, () => {
+      const p = document.querySelector('#renderStage .poster-page');
+      return { frames: p.querySelectorAll('.pg-frame').length, content: !!p.querySelector('.pg-content') };
+    });
+    assert.equal(frameless.frames, 0, 'frameless mode must not add any frame elements');
+    assert.equal(frameless.content, true, 'the poster content itself is untouched');
+
+    // Solid override on any template.
+    await evalJS(page, () => {
+      const s = document.getElementById('frameSel');
+      s.value = 'solid';
+      s.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await waitFor(page, () => $eval(page, '#renderStage .pg-frame-outer', (e) => getComputedStyle(e).borderStyle === 'solid'));
+
+    // Back to the template default.
+    await evalJS(page, () => {
+      const s = document.getElementById('frameSel');
+      s.value = 'auto';
+      s.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await waitFor(page, () => $eval(page, '#renderStage .pg-frame-outer', (e) => getComputedStyle(e).borderStyle === 'double'));
     assert.equal(page.__errors.length, 0, `console errors: ${page.__errors.join(' | ')}`);
   });
 

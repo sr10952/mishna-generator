@@ -68,6 +68,7 @@
       </div>
       <div class="topbar-actions">
         <a class="sefaria-credit" href="https://developers.sefaria.org" target="_blank" rel="noopener" data-i18n="poweredBy">Texts from Sefaria.org</a>
+        <span class="app-version" id="appVersion" title="App version"></span>
         <button id="helpBtn" class="btn ghost circle" type="button" aria-haspopup="dialog" aria-controls="helpModal">?</button>
         <button id="langToggle" class="btn ghost" type="button" title="עברית / English">עברית</button>
       </div>
@@ -79,6 +80,18 @@
     <div class="intro-inner">
       <p class="intro-text"><strong data-i18n="introTitle">New here?</strong> <span data-i18n="introText"></span></p>
       <button class="btn small" id="introGotItBtn" type="button" data-i18n="introGotIt">Got it</button>
+    </div>
+  </div>
+
+  <!-- New-version banner: the service worker installs updates in the
+       background; this tells active users to reload into the new release. -->
+  <div class="update-banner" id="updateBanner" role="status" hidden>
+    <div class="intro-inner">
+      <p class="intro-text" id="updateVersionText"></p>
+      <span class="update-actions">
+        <button class="btn primary small" id="updateReloadBtn" type="button" data-i18n="updateReload">Reload now</button>
+        <button class="btn ghost small" id="updateLaterBtn" type="button" data-i18n="updateLater">Later</button>
+      </span>
     </div>
   </div>
 
@@ -269,6 +282,17 @@
             <div class="template-grid" id="templateGrid" role="radiogroup"></div>
           </div>
 
+          <label class="field">
+            <span class="field-label" data-i18n="frame">Page frame</span>
+            <select id="frameSel">
+              <option value="auto" data-i18n="frameAuto">Template default</option>
+              <option value="none" data-i18n="frameNone">Frameless (nothing drawn — best with a background image)</option>
+              <option value="solid" data-i18n="frameSolid">Single line</option>
+              <option value="double" data-i18n="frameDouble">Double line</option>
+            </select>
+          </label>
+          <p class="hint" data-i18n="frameHint">Choose “Frameless” when the uploaded background image already has its own border and nothing should be drawn over it.</p>
+
           <div class="grid-2">
             <label class="field">
               <span class="field-label" data-i18n="posterFont">Poster font</span>
@@ -368,22 +392,22 @@
             <div class="margin-grid">
               <label class="margin-cell">
                 <span data-i18n="marginTop">Top</span>
-                <span class="margin-input-row"><input type="number" id="marginTop" min="0" max="2" step="0.05" inputmode="decimal" value="0.5" aria-label="Top margin in inches" /><span class="margin-unit">in</span></span>
+                <span class="margin-input-row"><input type="number" id="marginTop" min="0" max="4" step="0.05" inputmode="decimal" value="0.5" aria-label="Top margin in inches" /><span class="margin-unit">in</span></span>
               </label>
               <label class="margin-cell">
                 <span data-i18n="marginRight">Right</span>
-                <span class="margin-input-row"><input type="number" id="marginRight" min="0" max="2" step="0.05" inputmode="decimal" value="0.6" aria-label="Right margin in inches" /><span class="margin-unit">in</span></span>
+                <span class="margin-input-row"><input type="number" id="marginRight" min="0" max="4" step="0.05" inputmode="decimal" value="0.6" aria-label="Right margin in inches" /><span class="margin-unit">in</span></span>
               </label>
               <label class="margin-cell">
                 <span data-i18n="marginBottom">Bottom</span>
-                <span class="margin-input-row"><input type="number" id="marginBottom" min="0" max="2" step="0.05" inputmode="decimal" value="0.5" aria-label="Bottom margin in inches" /><span class="margin-unit">in</span></span>
+                <span class="margin-input-row"><input type="number" id="marginBottom" min="0" max="4" step="0.05" inputmode="decimal" value="0.5" aria-label="Bottom margin in inches" /><span class="margin-unit">in</span></span>
               </label>
               <label class="margin-cell">
                 <span data-i18n="marginLeft">Left</span>
-                <span class="margin-input-row"><input type="number" id="marginLeft" min="0" max="2" step="0.05" inputmode="decimal" value="0.6" aria-label="Left margin in inches" /><span class="margin-unit">in</span></span>
+                <span class="margin-input-row"><input type="number" id="marginLeft" min="0" max="4" step="0.05" inputmode="decimal" value="0.6" aria-label="Left margin in inches" /><span class="margin-unit">in</span></span>
               </label>
             </div>
-            <p class="hint" data-i18n="marginsHint">Inches of blank space between the page edge and the text. Use larger margins to keep text clear of pre-printed borders or artwork drawn on the template.</p>
+            <p class="hint" data-i18n="marginsHint">Inches of blank space between the page edge and the text (0–4 in per side). Use larger margins to keep text clear of pre-printed borders or artwork drawn on the template.</p>
           </div>
 
           <label class="field">

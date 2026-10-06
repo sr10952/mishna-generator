@@ -101,6 +101,29 @@ body {
 .intro-text { margin: 0; font-size: 14px; color: var(--ui-ink); overflow-wrap: anywhere; }
 .intro-text strong { color: var(--ui-accent); }
 
+/* ---------------- new-version banner ---------------- */
+
+.update-banner {
+  background: linear-gradient(90deg, #e9f2fc, #dcebfa);
+  border-bottom: 1px solid #b9d2ee;
+}
+.update-actions { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* ---------------- version chip (top bar) ---------------- */
+
+.app-version {
+  font-size: 12px;
+  font-weight: 600;
+  color: #c7d2e4;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  padding: 2px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+  direction: ltr;
+  unicode-bidi: embed;
+}
+
 /* ---------------- layout ---------------- */
 
 .layout {
@@ -592,7 +615,7 @@ input[type='range'] { accent-color: var(--ui-accent-2); width: 100%; }
 }
 
 /* keep print untouched (poster.css owns @media print) */
-@media print { .mobile-tabs, .action-dock, .tab-bar, .intro-banner { display: none !important; } }
+@media print { .mobile-tabs, .action-dock, .tab-bar, .intro-banner, .update-banner { display: none !important; } }
 
 /* RTL niceties (values flip automatically via logical props where used) */
 [dir='rtl'] .brand-mark { font-family: 'Frank Ruhl Libre', serif; }

@@ -6,8 +6,15 @@
  * to a USB drive and served locally. Sefaria API calls are network-first with
  * no offline fallback (the bundled content in assets/content covers the offline
  * example); everything else is cache-first.
+ *
+ * Release versioning: VERSION is the release number from package.json (kept
+ * in lock-step with assets/js/version.js) and the cache name carries both the
+ * release version and a content hash, so every release starts a fresh cache,
+ * old caches are deleted on activate, and online users pick up the new build
+ * automatically (the page also asks this worker for updates while it is open).
  */
-const CACHE = 'mishna-poster-5e2243e53939';
+const VERSION = '1.1.0';
+const CACHE = 'mishna-poster-v1.1.0-4eb0575c003b';
 const PRECACHE = [
   "index.html",
   "manifest.webmanifest",
@@ -27,6 +34,7 @@ const PRECACHE = [
   "assets/js/schedule.js",
   "assets/js/sefaria.js",
   "assets/js/settings.js",
+  "assets/js/version.js",
   "assets/vendor/html2canvas.min.js",
   "assets/vendor/jspdf.umd.min.js",
   "assets/fonts/david-hebrew-400.woff2",
@@ -74,6 +82,16 @@ self.addEventListener('activate', (event) => {
       keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)),
     )).then(() => self.clients.claim()),
   );
+});
+
+// The page can ask which release this worker serves (update banner wording).
+self.addEventListener('message', (event) => {
+  const data = event.data;
+  if (data && data.type === 'GET_VERSION') {
+    const reply = { type: 'VERSION', version: VERSION, cache: CACHE };
+    if (event.ports && event.ports[0]) event.ports[0].postMessage(reply);
+    else if (event.source && event.source.postMessage) event.source.postMessage(reply);
+  }
 });
 
 self.addEventListener('fetch', (event) => {
